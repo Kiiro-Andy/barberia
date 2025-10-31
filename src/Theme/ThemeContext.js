@@ -35,6 +35,14 @@ export function ThemeProvider({ children }) {
 	const effective = themeName === "system" ? sys : themeName;
 	const isDark = effective === "dark";
 
+	const barberColors = {
+		primary: "#1C1C1C", // negro profundo
+		accent: "#C0A060", // dorado clásico
+		secondary: "#7A1F1F", // vino/rojo oscuro
+		blueBarber: "#1E3A5F", // azul acero
+		cream: "#ecececff",
+	};
+
 	// Combinar temas de Paper y Navigation
 	const CombinedLightTheme = {
 		...PaperDefaultTheme,
@@ -42,14 +50,20 @@ export function ThemeProvider({ children }) {
 		colors: {
 			...PaperDefaultTheme.colors,
 			...NavigationDefaultTheme.colors,
-			background: "#ecececff",
-			surface: "#F5F5F5",
-			text: "#111111",
-			subtext: "#666666",
-			primary: "#0A192F",
-			accent: "#C0A060",
-			card: "#FFFFFF",
-			placeholder: "#999999",
+			background: barberColors.cream,
+			backgroundHeader: "#edebefff",
+			surface: "#fff",
+			text: "#1B1B1B",
+			subtext: "#555",
+			primary: barberColors.primary,
+			accent: barberColors.accent,
+			secondary: barberColors.secondary,
+			bluecard: barberColors.blueBarber,
+			card: "#FAFAFA",
+			border: "#DDD",
+			placeholder: "#999",
+			button1: barberColors.blueBarber,
+			button2: barberColors.secondary,
 		},
 	};
 
@@ -59,14 +73,19 @@ export function ThemeProvider({ children }) {
 		colors: {
 			...PaperDarkTheme.colors,
 			...NavigationDarkTheme.colors,
-			background: "#0b0b0bff",
-			surface: "#1C1C1C",
+			background: "#1e1d21ff",
+			backgroundHeader: "#161616",
+			surface: "#161616",
 			text: "#FFFFFF",
-			subtext: "#BBBBBB",
-			primary: "#0A192F",
-			accent: "#C0A060",
-			card: "#161616",
-			placeholder: "#777777",
+			subtext: "#BEBEBE",
+			primary: barberColors.primary,
+			accent: barberColors.accent,
+			secondary: barberColors.blueBarber,
+			card: "#1E1E1E",
+			border: "#2A2A2A",
+			placeholder: "#777",
+			button1: barberColors.blueBarber,
+			button2: barberColors.secondary,
 		},
 	};
 

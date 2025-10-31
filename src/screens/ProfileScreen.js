@@ -32,7 +32,9 @@ export default function ProfileScreen({ navigation }) {
 			</View>
 
 			<Image
-				source={{ uri: "https://via.placeholder.com/100" }}
+				source={
+					isDark ? require("../../assets/icon-light.png") : require("../../assets/icon-dark.png")
+				}
 				style={styles.avatar}
 			/>
 			<Text style={styles.name}>Juan Pérez</Text>
@@ -41,6 +43,19 @@ export default function ProfileScreen({ navigation }) {
 
 			<TouchableOpacity style={styles.button}>
 				<Text style={styles.buttonText}>Editar perfil</Text>
+			</TouchableOpacity>
+
+			<TouchableOpacity
+				style={[styles.button, styles.logoutButton]}
+				onPress={() => navigation.navigate("Login")}
+			>
+				<Ionicons
+					name="log-out-outline"
+					size={18}
+					color={isDark ? "#fff" : "#fff"}
+					style={{ marginRight: 6 }}
+				/>
+				<Text style={styles.logoutText}>Cerrar sesión</Text>
 			</TouchableOpacity>
 
 			<TouchableOpacity
@@ -87,4 +102,22 @@ const makeStyles = (theme) =>
 		},
 		backButton: { marginTop: 20 },
 		backText: { color: theme.colors.accent, fontWeight: "600" },
+		logoutButton: {
+			backgroundColor: "#C06060",
+			flexDirection: "row",
+			justifyContent: "center",
+			alignItems: "center",
+		},
+		logoutText: {
+			color: "#fff",
+			fontWeight: "700",
+			fontSize: 16,
+		},
+		backButton: {
+			marginTop: 20,
+		},
+		backText: {
+			color: theme.colors.accent,
+			fontWeight: "600",
+		},
 	});

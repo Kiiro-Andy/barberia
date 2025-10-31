@@ -6,20 +6,23 @@ import {
 	TouchableOpacity,
 	StyleSheet,
 	Switch,
+	Platform,
 } from "react-native";
-import { Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 
-export default function LoginScreen({ navigation }) {
+export default function RegisterScreen({ navigation }) {
 	const { toggleTheme, isDark, theme } = useTheme();
+	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
 
 	const styles = makeStyles(theme);
 
 	return (
 		<View style={styles.container}>
+			{/* Toggle tema */}
 			<View
 				style={{ flexDirection: "row", alignItems: "center", marginTop: 20 }}
 			>
@@ -36,18 +39,35 @@ export default function LoginScreen({ navigation }) {
 					thumbColor={isDark ? "#111" : "#fff"}
 				/>
 			</View>
+
 			{/* Encabezado */}
-			<Ionicons name="cut-outline" size={26} color="#C0A060" />
-			<Text style={styles.title}>BarberApp</Text>
-			<Text style={styles.subtitle}>Inicia sesión para continuar</Text>
+			<Ionicons name="cut-outline" size={26} color={theme.colors.accent} />
+			<Text style={styles.title}>Crear cuenta</Text>
+			<Text style={styles.subtitle}>Regístrate para continuar</Text>
 
 			{/* Formulario */}
 			<View style={styles.form}>
 				<View style={styles.inputContainer}>
 					<Ionicons
+						name="person-outline"
+						size={20}
+						color={theme.colors.accent}
+						style={styles.icon}
+					/>
+					<TextInput
+						style={styles.input}
+						placeholder="Nombre completo"
+						placeholderTextColor="#aaa"
+						value={name}
+						onChangeText={setName}
+					/>
+				</View>
+
+				<View style={styles.inputContainer}>
+					<Ionicons
 						name="mail-outline"
 						size={20}
-						color="#C0A060"
+						color={theme.colors.accent}
 						style={styles.icon}
 					/>
 					<TextInput
@@ -63,7 +83,7 @@ export default function LoginScreen({ navigation }) {
 					<Ionicons
 						name="lock-closed-outline"
 						size={20}
-						color="#C0A060"
+						color={theme.colors.accent}
 						style={styles.icon}
 					/>
 					<TextInput
@@ -76,22 +96,39 @@ export default function LoginScreen({ navigation }) {
 					/>
 				</View>
 
+				<View style={styles.inputContainer}>
+					<Ionicons
+						name="lock-closed-outline"
+						size={20}
+						color={theme.colors.accent}
+						style={styles.icon}
+					/>
+					<TextInput
+						style={styles.input}
+						placeholder="Confirmar contraseña"
+						placeholderTextColor="#aaa"
+						secureTextEntry
+						value={confirmPassword}
+						onChangeText={setConfirmPassword}
+					/>
+				</View>
+
 				<TouchableOpacity
 					style={styles.button}
-					onPress={() => navigation.navigate("Home")}
+					onPress={() => alert("Registro exitoso")}
 				>
-					<Text style={styles.buttonText}>Entrar</Text>
+					<Text style={styles.buttonText}>Registrarse</Text>
 				</TouchableOpacity>
 			</View>
 
 			{/* Pie de página */}
 			<Text style={styles.footerText}>
-				¿No tienes cuenta?{" "}
+				¿Ya tienes cuenta?{" "}
 				<Text
 					style={styles.linkText}
-					onPress={() => navigation.navigate("Register")}
+					onPress={() => navigation.navigate("Login")}
 				>
-					Regístrate
+					Inicia sesión
 				</Text>
 			</Text>
 		</View>
@@ -108,7 +145,7 @@ const makeStyles = (theme) =>
 			paddingHorizontal: 24,
 		},
 		title: {
-			fontSize: 36,
+			fontSize: 32,
 			fontWeight: "700",
 			color: theme.colors.accent,
 			marginBottom: 6,

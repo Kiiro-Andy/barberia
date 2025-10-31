@@ -9,20 +9,6 @@ export default function AppointmentsScreen({ navigation }) {
 
 	return (
 		<View style={styles.container}>
-			<View style={styles.switchRow}>
-				<Ionicons
-					name={isDark ? "moon" : "sunny"}
-					size={20}
-					color={theme.colors.accent}
-					style={{ marginRight: 6 }}
-				/>
-				<Switch
-					value={isDark}
-					onValueChange={toggleTheme}
-					trackColor={{ false: "#999", true: "#C0A060" }}
-					thumbColor={isDark ? "#111" : "#fff"}
-				/>
-			</View>
 
 			<Ionicons name="time-outline" size={28} color={theme.colors.accent} />
 			<Text style={styles.title}>Mis citas 📅</Text>
