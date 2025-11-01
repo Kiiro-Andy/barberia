@@ -165,7 +165,7 @@ const makeStyles = (theme, isDark) =>
 		container: {
 			flex: 1,
 			backgroundColor: theme.colors.background,
-			paddingHorizontal: 0,
+			paddingHorizontal: 20,
 			paddingTop: 40,
 		},
 		sectionTitle: {
@@ -201,8 +201,7 @@ const makeStyles = (theme, isDark) =>
 		carouselCard: {
 			width: width,
 			height: 260,
-			borderTopLeftRadius: 16,
-			borderTopRightRadius: 16,
+			borderRadius: 12,
 			overflow: "hidden",
 			elevation: 4,
 			backgroundColor: theme.colors.surface,
