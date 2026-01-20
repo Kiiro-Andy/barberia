@@ -1,297 +1,399 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
-	View,
-	Text,
-	TouchableOpacity,
-	StyleSheet,
-	Image,
-	FlatList,
-	Animated,
-	Dimensions,
-	ScrollView,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Animated,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 
-const { width } = Dimensions.get("window");
-const IMAGES = [
-	require("../../assets/cut1.jpg"),
-	require("../../assets/cut2.jpg"),
-	require("../../assets/cut3.jpg"),
-	require("../../assets/cut4.jpg"),
-	require("../../assets/cut5.jpg"),
+const SERVICES = [
+  {
+    id: "1",
+    name: "Corte de cabello",
+    image: require("../../assets/cut1.jpg"),
+    description: "Corte clásico o moderno adaptado a tu estilo.",
+    duration: "30 min",
+    price: "$150 MXN",
+  },
+  {
+    id: "2",
+    name: "Barba",
+    image: require("../../assets/cut2.jpg"),
+    description: "Perfilado y arreglo profesional de barba.",
+    duration: "20 min",
+    price: "$100 MXN",
+  },
+  {
+    id: "3",
+    name: "Cejas",
+    image: require("../../assets/cut3.jpg"),
+    description: "Diseño y limpieza de cejas.",
+    duration: "10 min",
+    price: "$50 MXN",
+  },
 ];
 
 export default function HomeScreen({ navigation }) {
-	const { theme, toggleTheme, isDark } = useTheme();
-	const styles = makeStyles(theme, isDark);
-	const scrollX = useRef(new Animated.Value(0)).current;
+  const { theme, isDark } = useTheme();
+  const styles = makeStyles(theme, isDark);
 
-	return (
-		<ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-			<View style={{ paddingBottom: 80 }}>
-				{/* SECCIÓN: PROMOCIÓN DESTACADA */}
-				<View style={styles.promoCard}>
-					<View style={styles.promoTextContainer}>
-						<Text style={styles.promoTitle}>Descuento Especial</Text>
-						<Text style={styles.promoSubtitle}>Hasta un 30% OFF</Text>
-						<TouchableOpacity style={styles.promoButton}>
-							<Text style={styles.promoButtonText}>Reservar ahora</Text>
-						</TouchableOpacity>
-					</View>
-					<Image
-						source={require("../../assets/barber-banner.jpg")}
-						style={styles.promoImage}
-					/>
-				</View>
+  const servicesAnim = useRef(new Animated.Value(0)).current;
+  const buttonsAnim = useRef(new Animated.Value(0)).current;
 
-				{/* CARRUSEL DE ESTILOS */}
-				<Text style={styles.sectionTitle}>Estilos</Text>
+  const [expandedService, setExpandedService] = useState(null);
 
-				<View>
-					<Animated.FlatList
-						data={IMAGES}
-						keyExtractor={(_, index) => index.toString()}
-						horizontal
-						showsHorizontalScrollIndicator={false}
-						pagingEnabled
-						snapToAlignment="center"
-						decelerationRate="fast"
-						bounces={false}
-						onScroll={Animated.event(
-							[{ nativeEvent: { contentOffset: { x: scrollX } } }],
-							{ useNativeDriver: false }
-						)}
-						renderItem={({ item, index }) => (
-							<View style={styles.carouselCard}>
-								<Image source={item} style={styles.carouselImage} />
-								<View style={styles.carouselOverlay}>
-									<Text style={styles.carouselText}>Corte #{index + 1}</Text>
-								</View>
-							</View>
-						)}
-					/>
+  useEffect(() => {
+    Animated.stagger(150, [
+      Animated.timing(buttonsAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(servicesAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
-					{/* INDICADORES DE PÁGINA */}
-					<View style={styles.pagination}>
-						{IMAGES.map((_, i) => {
-							const inputRange = [width * (i - 1), width * i, width * (i + 1)];
-							const dotWidth = scrollX.interpolate({
-								inputRange,
-								outputRange: [8, 16, 8],
-								extrapolate: "clamp",
-							});
-							const opacity = scrollX.interpolate({
-								inputRange,
-								outputRange: [0.4, 1, 0.4],
-								extrapolate: "clamp",
-							});
-							return (
-								<Animated.View
-									key={i}
-									style={[styles.dot, { width: dotWidth, opacity }]}
-								/>
-							);
-						})}
-					</View>
-				</View>
+  const toggleService = (id) => {
+    setExpandedService(expandedService === id ? null : id);
+  };
 
-				{/* SECCIÓN: SERVICIOS */}
-				<Text style={styles.sectionTitle}>Servicios</Text>
-				<View style={styles.servicesGrid}>
-					{[
-						{ icon: "cut-outline", label: "Corte" },
-						{ icon: "body-outline", label: "Paquete completo" },
-						{ icon: "sparkles-outline", label: "Ceja" },
-						{ icon: "man-outline", label: "Barba" },
-					].map((service, index) => (
-						<TouchableOpacity
-							key={index}
-							activeOpacity={0.7}
-							onPress={() => console.log(`Presionaste ${service.label}`)}
-							style={[
-								styles.serviceCard,
-								{
-									backgroundColor: isDark
-										? theme.colors.secondary
-										: theme.colors.surface,
-									borderColor: isDark ? "#C0A06050" : "#C0A06080",
-								},
-							]}
-						>
-							<Ionicons
-								name={service.icon}
-								size={28}
-								color={isDark ? theme.colors.accent : theme.colors.blueBarber}
-							/>
-							<Text style={styles.serviceText}>{service.label}</Text>
-						</TouchableOpacity>
-					))}
-				</View>
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={{ paddingBottom: 80 }}>
+        {/* BIENVENIDA */}
+        <Animated.View
+          style={[
+            styles.welcomeContainer,
+            {
+              opacity: buttonsAnim,
+              transform: [
+                {
+                  translateY: buttonsAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.welcomeText}>¡Bienvenido!</Text>
+          <Text style={styles.welcomeSubText}>
+            Elige un servicio y agenda tu cita fácilmente
+          </Text>
+        </Animated.View>
 
-				{/* BOTONES PRINCIPALES */}
-				<View style={styles.mainButtons}>
-					<TouchableOpacity
-						activeOpacity={0.7}
-						style={[
-							styles.mainButtonCard,
-							{ backgroundColor: theme.colors.button2 },
-						]}
-						onPress={() => navigation.navigate("Booking")}
-					>
-						<Ionicons name="calendar-outline" size={38} color="#fff" />
-						<Text style={styles.mainButtonText}>Reservar cita</Text>
-					</TouchableOpacity>
+        {/* BOTONES PRINCIPALES */}
+        <Animated.View
+          style={[
+            styles.mainButtons,
+            {
+              opacity: buttonsAnim,
+              transform: [
+                {
+                  translateY: buttonsAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [30, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          {/* BOTÓN RESERVAR */}
+          <View style={styles.mainButtonShadow}>
+            <TouchableOpacity
+              style={[
+                styles.mainButtonCard,
+                { backgroundColor: theme.colors.accent },
+              ]}
+              onPress={() => navigation.navigate("Booking")}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={38} color={theme.colors.primary} />
+              <Text style={[styles.mainButtonText, { color: theme.colors.primary }]}>Reservar cita</Text>
+            </TouchableOpacity>
+          </View>
 
-					<TouchableOpacity
-						activeOpacity={0.7}
-						style={[
-							styles.mainButtonCard,
-							{ backgroundColor: theme.colors.button1 },
-						]}
-						onPress={() => navigation.navigate("Appointments")}
-					>
-						<Ionicons name="time-outline" size={38} color="#fff" />
-						<Text style={styles.mainButtonText}>Mis citas</Text>
-					</TouchableOpacity>
-				</View>
-			</View>
-		</ScrollView>
-	);
+          {/* BOTÓN MIS CITAS */}
+          <View style={styles.mainButtonShadow}>
+            <TouchableOpacity
+              style={[
+                styles.mainButtonCard,
+                { backgroundColor: theme.colors.accent },
+              ]}
+              onPress={() => navigation.navigate("Appointments")}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="time-outline" size={38} color={theme.colors.primary} />
+              <Text style={[styles.mainButtonText, { color: theme.colors.primary }]}>Mis citas</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* SERVICIOS */}
+        <Animated.Text
+          style={[
+            styles.sectionTitle,
+            {
+              opacity: servicesAnim,
+              transform: [
+                {
+                  translateY: servicesAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          Servicios
+        </Animated.Text>
+
+        <View style={styles.scheduleContainer}>
+          <Ionicons name="time-outline" size={18} color={theme.colors.info} />
+          <Text style={styles.scheduleText}>
+            Horario de atención: Lun a Sáb · 10:00 AM – 8:00 PM
+          </Text>
+        </View>
+
+        <Animated.View
+          style={{
+            opacity: servicesAnim,
+            transform: [
+              {
+                translateY: servicesAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                }),
+              },
+            ],
+          }}
+        >
+          {SERVICES.map((service) => {
+            const isOpen = expandedService === service.id;
+
+            return (
+              <View key={service.id} style={styles.serviceItem}>
+                <TouchableOpacity
+                  style={styles.serviceHeader}
+                  onPress={() => toggleService(service.id)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.serviceHeaderLeft}>
+                    <Text style={styles.serviceName}>{service.name}</Text>
+                    <Text style={styles.servicePrice}>{service.price}</Text>
+                  </View>
+
+                  <Ionicons
+                    name={isOpen ? "chevron-up" : "chevron-down"}
+                    size={22}
+                    color={theme.colors.text}
+                  />
+                </TouchableOpacity>
+
+                {isOpen && (
+                  <View style={styles.serviceContent}>
+                    <Image source={service.image} style={styles.serviceImage} />
+
+                    <Text style={styles.serviceDescription}>
+                      {service.description}
+                    </Text>
+
+                    <View style={styles.serviceMeta}>
+                      <View style={styles.metaItem}>
+                        <Ionicons name="time-outline" size={16} color={theme.colors.info} />
+                        <Text style={styles.metaText}>{service.duration}</Text>
+                      </View>
+
+                      <View style={styles.metaItem}>
+                        <Ionicons name="cash-outline" size={16} color={theme.colors.info} />
+                        <Text style={styles.metaText}>{service.price}</Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.bookButton}
+                      onPress={() =>
+                        navigation.navigate("Booking", {
+                          service,
+                        })
+                      }
+                    >
+                      <Text style={styles.bookButtonText}>
+                        Reservar este servicio
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </Animated.View>
+      </View>
+    </ScrollView>
+  );
 }
 
 const makeStyles = (theme, isDark) =>
-	StyleSheet.create({
-		container: {
-			flex: 1,
-			backgroundColor: theme.colors.background,
-			paddingHorizontal: 20,
-			paddingTop: 40,
-		},
-		sectionTitle: {
-			fontSize: 18,
-			fontWeight: "700",
-			color: theme.colors.text,
-			marginLeft: 20,
-			marginBottom: 12,
-		},
-		promoCard: {
-			backgroundColor: isDark ? theme.colors.secondary : theme.colors.secondary,
-			borderRadius: 16,
-			flexDirection: "row",
-			justifyContent: "space-between",
-			alignItems: "center",
-			padding: 16,
-			marginHorizontal: 20,
-			marginBottom: 25,
-			elevation: 3,
-		},
-		promoTextContainer: { flex: 1, marginRight: 10 },
-		promoTitle: { color: "#fff", fontSize: 18, fontWeight: "700" },
-		promoSubtitle: { color: "#f3f1f3", fontSize: 14, marginBottom: 10 },
-		promoButton: {
-			backgroundColor: "#C0A060",
-			paddingVertical: 8,
-			paddingHorizontal: 14,
-			borderRadius: 8,
-		},
-		promoButtonText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-		promoImage: { width: 80, height: 80, borderRadius: 50 },
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      paddingHorizontal: 20,
+      paddingTop: 40,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.colors.text,
+      marginBottom: 12,
+    },
 
-		carouselCard: {
-			width: width,
-			height: 260,
-			borderRadius: 12,
-			overflow: "hidden",
-			elevation: 4,
-			backgroundColor: theme.colors.surface,
-			shadowColor: "#000",
-			shadowOffset: { width: 0, height: 3 },
-			shadowOpacity: 0.3,
-			shadowRadius: 4.8,
-		},
-		carouselImage: { width: "100%", height: "100%", resizeMode: "cover" },
-		carouselOverlay: {
-			position: "absolute",
-			bottom: 0,
-			width: "100%",
-			backgroundColor: "rgba(0, 0, 0, 0.45)",
-			paddingVertical: 10,
-			alignItems: "center",
-		},
-		carouselText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+    serviceItem: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 14,
+      marginBottom: 14,
+      borderWidth: 1,
+      borderColor: isDark ? theme.colors.info : "#d6d6d6",
+      overflow: "hidden",
+    },
+    serviceHeader: {
+      padding: 16,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    serviceHeaderLeft: {
+      flexDirection: "column",
+    },
+    serviceName: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.colors.text,
+    },
+    servicePrice: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: theme.colors.accent,
+      marginTop: 2,
+    },
+    serviceContent: {
+      padding: 16,
+      paddingTop: 0,
+    },
+    serviceImage: {
+      width: "100%",
+      height: 200,
+      borderRadius: 12,
+      marginBottom: 12,
+    },
+    serviceDescription: {
+      fontSize: 14,
+      color: theme.colors.text,
+      opacity: 0.85,
+      marginBottom: 16,
+      lineHeight: 20,
+    },
+    serviceMeta: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 20,
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderColor: isDark ? "#333" : "#e0e0e0",
+    },
+    metaItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    metaText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: theme.colors.text,
+    },
+    bookButton: {
+      backgroundColor: theme.colors.accent,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+    bookButtonText: {
+      color: "#fff",
+      fontWeight: "700",
+      fontSize: 15,
+    },
 
-		pagination: {
-			flexDirection: "row",
-			justifyContent: "center",
-			alignItems: "center",
-			marginTop: 12,
-			marginBottom: 25,
-		},
-		dot: {
-			height: 8,
-			borderRadius: 4,
-			backgroundColor: "#C0A060",
-			marginHorizontal: 4,
-		},
+    mainButtons: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginBottom: 25,
+      gap: 20,
+    },
+    mainButtonShadow: {
+      flex: 1,
+      borderRadius: 18,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
+    },
+    mainButtonCard: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 26,
+      borderRadius: 18,
+      gap: 8,
+    },
+    mainButtonText: {
+      color: "#fff",
+      fontWeight: "600",
+      fontSize: 15,
+      marginTop: 6,
+      textAlign: "center",
+    },
+    welcomeContainer: {
+      marginBottom: 25,
+    },
 
-		servicesGrid: {
-			flexDirection: "row",
-			flexWrap: "wrap",
-			justifyContent: "space-between",
-			rowGap: 20,
-			columnGap: 14,
-			marginHorizontal: 20,
-			marginBottom: 30,
-		},
-		serviceCard: {
-			alignItems: "center",
-			justifyContent: "center",
-			width: 90,
-			height: 90,
-			borderRadius: 45,
-			borderWidth: 2,
-			elevation: 3,
-			shadowColor: "#000",
-			shadowOffset: { width: 0, height: 3 },
-			shadowOpacity: 0.2,
-			shadowRadius: 3.8,
-		},
-		serviceText: {
-			marginTop: 6,
-			fontSize: 12.5,
-			color: theme.colors.text,
-			fontWeight: "500",
-			textAlign: "center",
-		},
-		mainButtons: {
-			flexDirection: "row",
-			justifyContent: "space-around",
-			marginTop: 25,
-			gap: 20,
-			marginHorizontal: 20,
-		},
-		mainButtonCard: {
-			flex: 1,
-			alignItems: "center",
-			justifyContent: "center",
-			paddingVertical: 28,
-			borderRadius: 18,
-			elevation: 4,
-			gap: 8,
-			borderWidth: 2,
-			borderColor: "#C0A060",
-			shadowColor: "#000",
-			shadowOffset: { width: 0, height: 4 },
-			shadowOpacity: 0.3,
-			shadowRadius: 4.65,
-		},
-		mainButtonText: {
-			color: "#fff",
-			fontWeight: "600",
-			fontSize: 15,
-			marginTop: 6,
-			textAlign: "center",
-			letterSpacing: 0.4,
-		},
-	});
+    welcomeText: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: theme.colors.text,
+    },
+
+    welcomeSubText: {
+      fontSize: 14,
+      marginTop: 4,
+      color: theme.colors.info,
+      opacity: 0.7,
+    },
+
+    scheduleContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 18,
+      paddingHorizontal: 4,
+    },
+
+    scheduleText: {
+      fontSize: 13,
+      fontWeight: "500",
+      color: theme.colors.text,
+      opacity: 0.8,
+    },
+  });

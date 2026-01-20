@@ -9,29 +9,36 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 
+const STEPS = ["barber", "service", "date", "time", "confirm", "done"];
+
 export default function BookingScreen({ navigation }) {
-  const { theme } = useTheme(); // sin toggle ni switch
+  const { theme } = useTheme();
   const styles = makeStyles(theme);
 
-  // ----- DATA MOCK -----
   const BARBERS = [
     { id: 1, name: "Carlos", specialty: "Fades y barba pro" },
     { id: 2, name: "Luis", specialty: "Corte clásico a tijera" },
     { id: 3, name: "Edweed", specialty: "Degradado HD 🤌" },
   ];
 
-  // Eliminado "Paquete completo"
   const SERVICES = [
     { id: "corte", name: "Corte", emoji: "💇‍♂️" },
     { id: "barba", name: "Barba", emoji: "🧔" },
     { id: "ceja", name: "Ceja", emoji: "👁️" },
   ];
 
-  const DAYS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  const DAYS = [
+    "Lunes",
+    "Martes",
+    "Miércoles",
+    "Jueves",
+    "Viernes",
+    "Sábado",
+    "Domingo",
+  ];
+
   const BASE_TIMES = ["10:00", "11:00", "12:00", "16:00", "17:00", "18:30"];
 
-  // ----- STATE (JS puro, sin tipos) -----
-  // flujo: barber -> service (multi) -> date -> time -> confirm -> done
   const [step, setStep] = useState("barber");
   const [history, setHistory] = useState([]);
   const [selectedBarber, setSelectedBarber] = useState(null);
@@ -40,69 +47,26 @@ export default function BookingScreen({ navigation }) {
   const [selectedTime, setSelectedTime] = useState(null);
   const [timeSlots, setTimeSlots] = useState([]);
 
-  // disponibilidad fake
-  function buildTimeSlots() {
-    return BASE_TIMES.map((t) => ({
+  const buildTimeSlots = () =>
+    BASE_TIMES.map((t) => ({
       time: t,
       available: Math.random() > 0.35,
     }));
-  }
 
-  // ----- NAV HELPERS -----
-  function goTo(nextStep) {
+  const goTo = (next) => {
     setHistory((h) => [...h, step]);
-    setStep(nextStep);
-  }
+    setStep(next);
+  };
 
-  function goBack() {
+  const goBack = () => {
     setHistory((h) => {
-      if (h.length === 0) {
-        handleReset();
-        return [];
-      }
       const prev = h[h.length - 1];
-      setStep(prev);
+      setStep(prev || "barber");
       return h.slice(0, -1);
     });
-  }
+  };
 
-  // ----- HANDLERS -----
-  function handleSelectBarber(barber) {
-    setSelectedBarber(barber);
-    goTo("service");
-  }
-
-  // Toggle checklist de servicios
-  function toggleService(service) {
-    setSelectedServices((prev) => {
-      const exists = prev.find((s) => s.id === service.id);
-      if (exists) return prev.filter((s) => s.id !== service.id);
-      return [...prev, service];
-    });
-  }
-
-  function goNextFromServices() {
-    if (selectedServices.length > 0) goTo("date");
-  }
-
-  function handleSelectDay(day) {
-    setSelectedDay(day);
-    setTimeSlots(buildTimeSlots());
-    setSelectedTime(null);
-    goTo("time");
-  }
-
-  function handleSelectTime(slot) {
-    if (!slot.available) return;
-    setSelectedTime(slot.time);
-    goTo("confirm");
-  }
-
-  function handleConfirm() {
-    goTo("done");
-  }
-
-  function handleReset() {
+  const handleReset = () => {
     setStep("barber");
     setHistory([]);
     setSelectedBarber(null);
@@ -110,227 +74,229 @@ export default function BookingScreen({ navigation }) {
     setSelectedDay(null);
     setSelectedTime(null);
     setTimeSlots([]);
-  }
+  };
 
-  // helpers visuales
-  const servicesLabel =
-    selectedServices.map((s) => s.name).join(" + ") || "Sin seleccionar";
+  const servicesLabel = selectedServices.map((s) => s.name).join(" + ") || null;
 
-  const Header = ({ icon, title, subtitle }) => (
-    <View style={{ alignItems: "center", marginBottom: 20 }}>
-      <Ionicons name={icon} size={28} color={theme.colors.accent} />
-      <Text style={styles.title}>{title}</Text>
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+  /* ---------------- UI helpers ---------------- */
+
+  const StepIndicator = () => {
+    const currentIndex = STEPS.indexOf(step);
+    return (
+      <View style={styles.stepRow}>
+        {STEPS.slice(0, -1).map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.stepDot,
+              i <= currentIndex && { backgroundColor: theme.colors.accent },
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
+
+  const MiniSummary = () => (
+    <View style={styles.miniSummary}>
+      {selectedBarber && <Chip icon="person" text={selectedBarber.name} />}
+      {servicesLabel && <Chip icon="sparkles" text={servicesLabel} />}
+      {selectedDay && <Chip icon="calendar" text={selectedDay} />}
+      {selectedTime && <Chip icon="time" text={selectedTime} />}
     </View>
   );
 
-  // Paso 1: Barbero
+  const Chip = ({ icon, text }) => (
+    <View style={styles.chip}>
+      <Ionicons
+        name={`${icon}-outline`}
+        size={14}
+        color={theme.colors.primary}
+      />
+      <Text style={styles.chipText}>{text}</Text>
+    </View>
+  );
+
+  const Receipt = ({ title, footerText, highlight }) => (
+    <View style={[styles.receipt, highlight && styles.receiptHighlight]}>
+      <Text style={styles.receiptTitle}>{title}</Text>
+
+      <View style={styles.receiptLine} />
+
+      {selectedBarber && (
+        <View style={styles.receiptRow}>
+          <Text style={styles.receiptLabel}>Barbero</Text>
+          <Text style={styles.receiptValue}>{selectedBarber.name}</Text>
+        </View>
+      )}
+
+      {servicesLabel && (
+        <View style={styles.receiptRow}>
+          <Text style={styles.receiptLabel}>Servicios</Text>
+          <Text style={styles.receiptValue}>{servicesLabel}</Text>
+        </View>
+      )}
+
+      {selectedDay && (
+        <View style={styles.receiptRow}>
+          <Text style={styles.receiptLabel}>Día</Text>
+          <Text style={styles.receiptValue}>{selectedDay}</Text>
+        </View>
+      )}
+
+      {selectedTime && (
+        <View style={styles.receiptRow}>
+          <Text style={styles.receiptLabel}>Hora</Text>
+          <Text style={styles.receiptValue}>{selectedTime}</Text>
+        </View>
+      )}
+
+      <View style={styles.receiptLineDashed} />
+
+      {footerText && <Text style={styles.receiptFooter}>{footerText}</Text>}
+    </View>
+  );
+
+  const Header = ({ icon, title, subtitle, hideSummary }) => (
+    <>
+      <StepIndicator />
+      <View style={{ alignItems: "center", marginBottom: 16 }}>
+        <Ionicons name={icon} size={28} color={theme.colors.accent} />
+        <Text style={styles.title}>{title}</Text>
+        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      </View>
+      {!hideSummary && <MiniSummary />}
+    </>
+  );
+
+  /* ---------------- Steps ---------------- */
+
   const StepBarber = () => (
     <>
-      <Header
-        icon="person-outline"
-        title="Elige tu barbero 💈"
-        subtitle="Estos son los barberos disponibles ahora mismo:"
-      />
+      <Header icon="person-outline" title="Elige tu barbero" />
       {BARBERS.map((b) => (
         <TouchableOpacity
           key={b.id}
           style={styles.cardOption}
-          onPress={() => handleSelectBarber(b)}
+          onPress={() => {
+            setSelectedBarber(b);
+            goTo("service");
+          }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Ionicons
-              name="cut-outline"
-              size={22}
-              color={theme.colors.primary}
-              style={{ marginRight: 8 }}
-            />
-            <View>
-              <Text style={styles.optionTitle}>{b.name}</Text>
-              <Text style={styles.optionSubtitle}>{b.specialty}</Text>
-            </View>
+          <View>
+            <Text style={styles.optionTitle}>{b.name}</Text>
+            <Text style={styles.optionSubtitle}>{b.specialty}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={theme.colors.subtext} />
+          <Ionicons name="chevron-forward" size={18} />
         </TouchableOpacity>
       ))}
     </>
   );
 
-  // Paso 2: Servicios (checklist)
   const StepService = () => (
     <>
-      <Header
-        icon="sparkles-outline"
-        title="¿Qué servicio(s) necesitas?"
-        subtitle={`Barbero: ${selectedBarber?.name}`}
-      />
+      <Header icon="sparkles-outline" title="Servicios" />
       {SERVICES.map((s) => {
-        const isSelected = !!selectedServices.find((x) => x.id === s.id);
+        const active = selectedServices.find((x) => x.id === s.id);
         return (
           <TouchableOpacity
             key={s.id}
             style={[
               styles.cardOption,
-              isSelected && { borderColor: theme.colors.accent },
+              active && { borderColor: theme.colors.accent },
             ]}
-            onPress={() => toggleService(s)}
+            onPress={() =>
+              setSelectedServices((prev) =>
+                active ? prev.filter((x) => x.id !== s.id) : [...prev, s],
+              )
+            }
           >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons
-                name="pricetag-outline"
-                size={22}
-                color={theme.colors.primary}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.optionTitle}>
-                {s.name} {s.emoji}
-              </Text>
-            </View>
-
+            <Text style={styles.optionTitle}>
+              {s.name} {s.emoji}
+            </Text>
             <Ionicons
-              name={isSelected ? "checkmark-circle" : "ellipse-outline"}
-              size={22}
-              color={isSelected ? theme.colors.accent : theme.colors.subtext}
+              name={active ? "checkmark-circle" : "ellipse-outline"}
+              size={20}
+              color={theme.colors.accent}
             />
           </TouchableOpacity>
         );
       })}
-
       <TouchableOpacity
-        style={[
-          styles.mainButton,
-          selectedServices.length === 0 && styles.mainButtonDisabled,
-        ]}
-        onPress={goNextFromServices}
-        disabled={selectedServices.length === 0}
+        style={styles.mainButton}
+        disabled={!selectedServices.length}
+        onPress={() => goTo("date")}
       >
-        <Text style={styles.mainButtonText}>
-          {selectedServices.length === 0 ? "Selecciona al menos 1" : "Continuar"}
-        </Text>
+        <Text style={styles.mainButtonText}>Continuar</Text>
       </TouchableOpacity>
     </>
   );
 
-  // Paso 3: Día
   const StepDay = () => (
     <>
-      <Header
-        icon="calendar-outline"
-        title="Selecciona el día 📅"
-        subtitle={`${selectedBarber?.name} • ${servicesLabel}`}
-      />
-      {DAYS.map((day, idx) => (
+      <Header icon="calendar-outline" title="Selecciona el día" />
+      {DAYS.map((d) => (
         <TouchableOpacity
-          key={idx}
-          style={[
-            styles.cardOption,
-            selectedDay === day && { borderColor: theme.colors.accent },
-          ]}
-          onPress={() => handleSelectDay(day)}
+          key={d}
+          style={styles.cardOption}
+          onPress={() => {
+            setSelectedDay(d);
+            setTimeSlots(buildTimeSlots());
+            goTo("time");
+          }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Ionicons
-              name="today-outline"
-              size={22}
-              color={theme.colors.primary}
-              style={{ marginRight: 8 }}
-            />
-            <Text style={styles.optionTitle}>{day}</Text>
-          </View>
-          <Ionicons name="time-outline" size={20} color={theme.colors.subtext} />
+          <Text style={styles.optionTitle}>{d}</Text>
         </TouchableOpacity>
       ))}
     </>
   );
 
-  // Paso 4: Hora
   const StepTime = () => (
     <>
-      <Header
-        icon="time-outline"
-        title="Selecciona la hora ⏰"
-        subtitle={`${selectedBarber?.name} • ${servicesLabel} • ${selectedDay}`}
-      />
-      {timeSlots.map((slot, idx) => (
-        <TouchableOpacity
-          key={idx}
-          style={[
-            styles.timeButton,
-            !slot.available && styles.timeButtonDisabled,
-          ]}
-          onPress={() => handleSelectTime(slot)}
-          disabled={!slot.available}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Ionicons
-              name={slot.available ? "checkmark-circle" : "close-circle"}
-              size={20}
-              color={
-                slot.available ? theme.colors.primary : theme.colors.subtext
-              }
-              style={{ marginRight: 8 }}
-            />
-            <Text
-              style={[
-                styles.timeText,
-                !slot.available && styles.timeTextDisabled,
-              ]}
-            >
-              {slot.time}
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.timeStatus,
-              !slot.available && styles.timeStatusDisabled,
-            ]}
+      <Header icon="time-outline" title="Selecciona la hora" />
+      <View style={styles.timeGrid}>
+        {timeSlots.map((t) => (
+          <TouchableOpacity
+            key={t.time}
+            disabled={!t.available}
+            style={[styles.timeChip, !t.available && { opacity: 0.4 }]}
+            onPress={() => {
+              setSelectedTime(t.time);
+              goTo("confirm");
+            }}
           >
-            {slot.available ? "Disponible" : "Ocupado"}
-          </Text>
-        </TouchableOpacity>
-      ))}
+            <Text style={styles.timeText}>{t.time}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </>
   );
 
-  // Paso 5: Confirmar
   const StepConfirm = () => (
     <>
       <Header
         icon="checkmark-done-outline"
-        title="Confirmar cita ✅"
-        subtitle="Revisa los datos antes de agendar"
+        title="Confirmar cita"
+        hideSummary
       />
-      <View style={styles.summaryBox}>
-        <RowInfo icon="person-outline" label="Barbero" value={selectedBarber?.name} theme={theme} />
-        <RowInfo icon="sparkles-outline" label="Servicios" value={servicesLabel} theme={theme} />
-        <RowInfo icon="calendar-outline" label="Día" value={selectedDay} theme={theme} />
-        <RowInfo icon="time-outline" label="Hora" value={selectedTime} theme={theme} />
-      </View>
-      <TouchableOpacity style={styles.mainButton} onPress={handleConfirm}>
-        <Text style={styles.mainButtonText}>Confirmar cita</Text>
+
+      <Receipt title="Resumen de tu cita" footerText="Confirma tu cita" />
+
+      <TouchableOpacity style={styles.mainButton} onPress={() => goTo("done")}>
+        <Text style={styles.mainButtonText}>Confirmar</Text>
       </TouchableOpacity>
     </>
   );
 
-  // Paso 6: Listo
   const StepDone = () => (
     <>
-      <Header
-        icon="ribbon-outline"
-        title="Cita agendada 🎉"
-        subtitle="Tu reservación ha sido creada exitosamente."
-      />
-      <View style={styles.summaryBox}>
-        <RowInfo icon="person-outline" label="Barbero" value={selectedBarber?.name} theme={theme} />
-        <RowInfo icon="sparkles-outline" label="Servicios" value={servicesLabel} theme={theme} />
-        <RowInfo icon="calendar-outline" label="Día" value={selectedDay} theme={theme} />
-        <RowInfo icon="time-outline" label="Hora" value={selectedTime} theme={theme} />
-      </View>
+      <Header icon="ribbon-outline" title="¡Cita agendada!" hideSummary />
 
-      {/* Atrás en la pantalla final para editar (vuelve a Confirmar) */}
-      <TouchableOpacity style={styles.secondaryButton} onPress={goBack}>
-        <Text style={styles.secondaryButtonText}>← Editar detalles</Text>
-      </TouchableOpacity>
+      <Receipt
+        title="Comprobante de cita"
+        footerText="Gracias por tu preferencia ✨"
+        highlight
+      />
 
       <TouchableOpacity
         style={styles.mainButton}
@@ -338,7 +304,8 @@ export default function BookingScreen({ navigation }) {
       >
         <Text style={styles.mainButtonText}>Volver al inicio</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
+
+      <TouchableOpacity onPress={handleReset}>
         <Text style={styles.resetText}>Hacer otra cita</Text>
       </TouchableOpacity>
     </>
@@ -346,160 +313,197 @@ export default function BookingScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        {step === "barber" && <StepBarber />}
-        {step === "service" && <StepService />}
-        {step === "date" && <StepDay />}
-        {step === "time" && <StepTime />}
-        {step === "confirm" && <StepConfirm />}
-        {step === "done" && <StepDone />}
+      <ScrollView contentContainerStyle={styles.container}>
+        {
+          {
+            barber: <StepBarber />,
+            service: <StepService />,
+            date: <StepDay />,
+            time: <StepTime />,
+            confirm: <StepConfirm />,
+            done: <StepDone />,
+          }[step]
+        }
 
-        {/* Footer de navegación: en pasos intermedios muestra Atrás + Reiniciar */}
         {step !== "barber" && step !== "done" && (
-          <>
-            <TouchableOpacity style={styles.secondaryButton} onPress={goBack}>
-              <Text style={styles.secondaryButtonText}>← Atrás</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.backButton} onPress={handleReset}>
-              <Text style={styles.backText}>Reiniciar</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity onPress={goBack}>
+            <Text style={styles.backText}>← Atrás</Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
     </View>
   );
 }
 
-function RowInfo({ icon, label, value, theme }) {
-  return (
-    <View style={{ flexDirection: "row", marginBottom: 8 }}>
-      <Ionicons
-        name={icon}
-        size={18}
-        color={theme.colors.accent}
-        style={{ marginRight: 6, marginTop: 2 }}
-      />
-      <Text
-        style={{
-          color: theme.colors.text,
-          fontSize: 15,
-          fontWeight: "500",
-          marginRight: 4,
-        }}
-      >
-        {label}:
-      </Text>
-      <Text style={{ color: theme.colors.subtext, fontSize: 15 }}>{value}</Text>
-    </View>
-  );
-}
+/* ---------------- Styles ---------------- */
 
 const makeStyles = (theme) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background },
-    container: {
-      paddingTop: 80,
-      paddingBottom: 40,
-      paddingHorizontal: 24,
-      alignItems: "stretch",
+    container: { padding: 24, paddingTop: 60 },
+
+    stepRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      marginBottom: 12,
     },
+    stepDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: theme.colors.border,
+      marginHorizontal: 4,
+    },
+
     title: {
       fontSize: 26,
       fontWeight: "700",
       color: theme.colors.accent,
-      marginBottom: 8,
-      marginTop: 12,
-      textAlign: "center",
+      marginTop: 8,
     },
     subtitle: {
       color: theme.colors.subtext,
       fontSize: 14,
-      marginBottom: 20,
-      textAlign: "center",
+      marginTop: 4,
+    },
+
+    miniSummary: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      marginBottom: 16,
+    },
+    chip: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.colors.card,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 20,
+      margin: 4,
+    },
+    chipText: {
+      marginLeft: 6,
+      color: theme.colors.text,
+      fontSize: 13,
     },
 
     cardOption: {
       backgroundColor: theme.colors.card,
-      borderRadius: 12,
-      paddingVertical: 16,
-      paddingHorizontal: 16,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      marginBottom: 10,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    optionTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
-    optionSubtitle: { color: theme.colors.subtext, fontSize: 13 },
-
-    timeButton: {
-      backgroundColor: theme.colors.card,
-      borderRadius: 10,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      borderWidth: 1,
-      borderColor: theme.colors.accent,
-      marginBottom: 10,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    timeButtonDisabled: { opacity: 0.5, borderColor: theme.colors.border },
-    timeText: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
-    timeTextDisabled: { color: theme.colors.subtext },
-    timeStatus: { color: theme.colors.primary, fontWeight: "500" },
-    timeStatusDisabled: { color: theme.colors.subtext },
-
-    summaryBox: {
-      backgroundColor: theme.colors.card,
-      borderRadius: 12,
       padding: 16,
+      borderRadius: 12,
+      marginBottom: 10,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      marginBottom: 20,
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+
+    optionTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.colors.text,
+    },
+    optionSubtitle: {
+      fontSize: 13,
+      color: theme.colors.subtext,
+    },
+
+    timeGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+    },
+    timeChip: {
+      width: "48%",
+      backgroundColor: theme.colors.card,
+      padding: 14,
+      borderRadius: 10,
+      marginBottom: 10,
+      alignItems: "center",
+    },
+    timeText: { 
+      fontSize: 16, 
+      fontWeight: "600", 
+      color: theme.colors.text,
     },
 
     mainButton: {
       backgroundColor: theme.colors.accent,
+      padding: 14,
       borderRadius: 10,
-      paddingVertical: 14,
       alignItems: "center",
-      width: "100%",
-      marginBottom: 16,
+      marginTop: 12,
     },
-    mainButtonDisabled: { opacity: 0.5 },
     mainButtonText: {
       color: theme.colors.primary,
-      fontWeight: "700",
       fontSize: 16,
+      fontWeight: "700",
     },
 
-    // Botón "Atrás"
-    secondaryButton: {
-      backgroundColor: "transparent",
-      borderRadius: 10,
-      paddingVertical: 12,
-      alignItems: "center",
-      width: "100%",
+    backText: {
+      textAlign: "center",
+      marginTop: 16,
+      color: theme.colors.accent,
+      fontWeight: "600",
+    },
+    resetText: {
+      textAlign: "center",
+      marginTop: 14,
+      color: theme.colors.accent,
+    },
+    receipt: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 16,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      marginTop: 4,
     },
-    secondaryButtonText: {
-      color: theme.colors.accent,
+    receiptTitle: {
+      fontSize: 18,
       fontWeight: "700",
-      fontSize: 15,
+      textAlign: "center",
+      color: theme.colors.accent,
+      marginBottom: 12,
     },
-
-    // Reiniciar (solo se muestra fuera de "done")
-    backButton: { alignSelf: "center", marginTop: 10 },
-    backText: { color: theme.colors.accent, fontWeight: "600", fontSize: 14 },
-
-    resetBtn: { alignSelf: "center", marginTop: 12 },
-    resetText: { color: theme.colors.accent, fontWeight: "600", fontSize: 15 },
+    receiptRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginVertical: 6,
+    },
+    receiptLabel: {
+      color: theme.colors.subtext,
+      fontSize: 14,
+    },
+    receiptValue: {
+      color: theme.colors.text,
+      fontWeight: "600",
+    },
+    receiptLine: {
+      height: 1,
+      backgroundColor: theme.colors.border,
+      marginBottom: 10,
+    },
+    receiptLineDashed: {
+      height: 1,
+      borderStyle: "dashed",
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      marginVertical: 12,
+    },
+    receiptFooter: {
+      textAlign: "center",
+      fontSize: 12,
+      color: theme.colors.subtext,
+    },
+    receiptHighlight: {
+      borderColor: "#C0A060", // dorado elegante
+      borderWidth: 2,
+      shadowColor: "#C0A060",
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
+    },
   });
