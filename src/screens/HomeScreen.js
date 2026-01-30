@@ -7,9 +7,12 @@ import {
   Image,
   Animated,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
+
+const { width } = Dimensions.get("window");
 
 const SERVICES = [
   {
@@ -38,7 +41,17 @@ const SERVICES = [
   },
 ];
 
+const WORKS = [
+  require("../../assets/cut1.jpg"),
+  require("../../assets/cut2.jpg"),
+  require("../../assets/cut3.jpg"),
+  require("../../assets/cut4.jpg"),
+  require("../../assets/cut5.jpg"),
+];
+
 export default function HomeScreen({ navigation }) {
+  const scrollX = useRef(new Animated.Value(0)).current;
+
   const { theme, isDark } = useTheme();
   const styles = makeStyles(theme, isDark);
 
@@ -119,8 +132,16 @@ export default function HomeScreen({ navigation }) {
               onPress={() => navigation.navigate("Booking")}
               activeOpacity={0.7}
             >
-              <Ionicons name="calendar-outline" size={38} color={theme.colors.primary} />
-              <Text style={[styles.mainButtonText, { color: theme.colors.primary }]}>Reservar cita</Text>
+              <Ionicons
+                name="calendar-outline"
+                size={38}
+                color={theme.colors.primary}
+              />
+              <Text
+                style={[styles.mainButtonText, { color: theme.colors.primary }]}
+              >
+                Reservar cita
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -134,11 +155,63 @@ export default function HomeScreen({ navigation }) {
               onPress={() => navigation.navigate("Appointments")}
               activeOpacity={0.7}
             >
-              <Ionicons name="time-outline" size={38} color={theme.colors.primary} />
-              <Text style={[styles.mainButtonText, { color: theme.colors.primary }]}>Mis citas</Text>
+              <Ionicons
+                name="time-outline"
+                size={38}
+                color={theme.colors.primary}
+              />
+              <Text
+                style={[styles.mainButtonText, { color: theme.colors.primary }]}
+              >
+                Mis citas
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
+
+        {/* CARRUSEL DE TRABAJOS */}
+        <View style={{ marginBottom: 30 }}>
+          <Text style={styles.sectionTitle}>Nuestros trabajos</Text>
+
+          <Animated.ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            snapToAlignment="center"
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { useNativeDriver: false },
+            )}
+            scrollEventThrottle={16}
+          >
+            {WORKS.map((img, index) => (
+              <View key={index} style={styles.carouselItem}>
+                <Image source={img} style={styles.carouselImage} />
+              </View>
+            ))}
+          </Animated.ScrollView>
+
+          {/* INDICADORES */}
+          <View style={styles.dotsContainer}>
+            {WORKS.map((_, i) => {
+              const opacity = scrollX.interpolate({
+                inputRange: [(i - 1) * 300, i * 300, (i + 1) * 300],
+                outputRange: [0.3, 1, 0.3],
+                extrapolate: "clamp",
+              });
+
+              return (
+                <Animated.View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    { opacity, backgroundColor: theme.colors.accent },
+                  ]}
+                />
+              );
+            })}
+          </View>
+        </View>
 
         {/* SERVICIOS */}
         <Animated.Text
@@ -212,12 +285,20 @@ export default function HomeScreen({ navigation }) {
 
                     <View style={styles.serviceMeta}>
                       <View style={styles.metaItem}>
-                        <Ionicons name="time-outline" size={16} color={theme.colors.info} />
+                        <Ionicons
+                          name="time-outline"
+                          size={16}
+                          color={theme.colors.info}
+                        />
                         <Text style={styles.metaText}>{service.duration}</Text>
                       </View>
 
                       <View style={styles.metaItem}>
-                        <Ionicons name="cash-outline" size={16} color={theme.colors.info} />
+                        <Ionicons
+                          name="cash-outline"
+                          size={16}
+                          color={theme.colors.info}
+                        />
                         <Text style={styles.metaText}>{service.price}</Text>
                       </View>
                     </View>
@@ -395,5 +476,31 @@ const makeStyles = (theme, isDark) =>
       fontWeight: "500",
       color: theme.colors.text,
       opacity: 0.8,
+    },
+    carouselItem: {
+      width: width * 0.85,
+      marginRight: 20,
+      borderRadius: 20,
+      overflow: "hidden",
+      alignSelf: "center",
+    },
+
+    carouselImage: {
+      width: "100%",
+      height: 240,
+      borderRadius: 20,
+    },
+
+    dotsContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      marginTop: 10,
+      gap: 8,
+    },
+
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
     },
   });

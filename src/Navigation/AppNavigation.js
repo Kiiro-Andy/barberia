@@ -17,36 +17,29 @@ import BookingScreen from "../screens/BookingScreen";
 import AppointmentsScreen from "../screens/AppointmentsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import RegisterScreen from "../screens/RegisterScreen";
+import EditProfileScreen from "../screens/EditProfileScreen";
 
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigation() {
   const { paperTheme, isDark } = useTheme();
 
-   const headerBg = isDark
-    ? "#141414"
-    : paperTheme.colors.surface;
+  const headerBg = isDark ? "#141414" : paperTheme.colors.surface;
 
-  const headerText = isDark
-    ? "#FFFFFF"
-    : paperTheme.colors.onSurface;
+  const headerText = isDark ? "#FFFFFF" : paperTheme.colors.onSurface;
 
   const accent = "#C0A060";
 
-const CustomHeader = ({ title, navigation, canGoBack }) => (
-  <>
-    <StatusBar barStyle="light-content" backgroundColor="#141414" />
+  const CustomHeader = ({ title, navigation, canGoBack }) => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#141414" />
 
-    <View style={[styles.customHeader, { backgroundColor: headerBg }]}>
+      <View style={[styles.customHeader, { backgroundColor: headerBg }]}>
         {/* IZQUIERDA */}
         <View style={styles.left}>
           {canGoBack && (
             <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Ionicons
-                name="chevron-back"
-                size={26}
-                color={accent}
-              />
+              <Ionicons name="chevron-back" size={26} color={accent} />
             </TouchableOpacity>
           )}
 
@@ -57,16 +50,11 @@ const CustomHeader = ({ title, navigation, canGoBack }) => (
 
         {/* DERECHA */}
         <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
-          <Ionicons
-            name="person-circle-outline"
-            size={38}
-            color={accent}
-          />
+          <Ionicons name="person-circle-outline" size={38} color={accent} />
         </TouchableOpacity>
       </View>
     </>
   );
-
 
   return (
     <NavigationContainer theme={paperTheme}>
@@ -98,7 +86,11 @@ const CustomHeader = ({ title, navigation, canGoBack }) => (
           component={BookingScreen}
           options={({ navigation }) => ({
             header: () => (
-              <CustomHeader title="Reservar Cita" navigation={navigation} canGoBack/>
+              <CustomHeader
+                title="Reservar Cita"
+                navigation={navigation}
+                canGoBack
+              />
             ),
           })}
         />
@@ -107,7 +99,11 @@ const CustomHeader = ({ title, navigation, canGoBack }) => (
           component={AppointmentsScreen}
           options={({ navigation }) => ({
             header: () => (
-              <CustomHeader title="Mis Citas" navigation={navigation} canGoBack/>
+              <CustomHeader
+                title="Mis Citas"
+                navigation={navigation}
+                canGoBack
+              />
             ),
           })}
         />
@@ -116,7 +112,20 @@ const CustomHeader = ({ title, navigation, canGoBack }) => (
           component={ProfileScreen}
           options={({ navigation }) => ({
             header: () => (
-              <CustomHeader title="Perfil" navigation={navigation} canGoBack/>
+              <CustomHeader title="Perfil" navigation={navigation} canGoBack />
+            ),
+          })}
+        />
+        <Stack.Screen
+          name="EditProfile"
+          component={EditProfileScreen}
+          options={({ navigation }) => ({
+            header: () => (
+              <CustomHeader
+                title="Editar perfil"
+                navigation={navigation}
+                canGoBack
+              />
             ),
           })}
         />

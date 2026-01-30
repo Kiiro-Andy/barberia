@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
@@ -21,11 +22,33 @@ export default function BookingScreen({ navigation }) {
     { id: 3, name: "Edweed", specialty: "Degradado HD 🤌" },
   ];
 
-  const SERVICES = [
-    { id: "corte", name: "Corte", emoji: "💇‍♂️" },
-    { id: "barba", name: "Barba", emoji: "🧔" },
-    { id: "ceja", name: "Ceja", emoji: "👁️" },
-  ];
+const SERVICES = [
+  {
+    id: "corte",
+    name: "Corte de cabello",
+    image: require("../../assets/cut1.jpg"),
+    description: "Corte clásico o moderno adaptado a tu estilo.",
+    duration: "30 min",
+    price: "$150 MXN",
+  },
+  {
+    id: "barba",
+    name: "Barba",
+    image: require("../../assets/cut2.jpg"),
+    description: "Perfilado y arreglo profesional de barba.",
+    duration: "20 min",
+    price: "$100 MXN",
+  },
+  {
+    id: "ceja",
+    name: "Cejas",
+    image: require("../../assets/cut3.jpg"),
+    description: "Diseño y limpieza de cejas.",
+    duration: "10 min",
+    price: "$50 MXN",
+  },
+];
+
 
   const DAYS = [
     "Lunes",
@@ -193,44 +216,84 @@ export default function BookingScreen({ navigation }) {
     </>
   );
 
-  const StepService = () => (
-    <>
-      <Header icon="sparkles-outline" title="Servicios" />
-      {SERVICES.map((s) => {
-        const active = selectedServices.find((x) => x.id === s.id);
-        return (
-          <TouchableOpacity
-            key={s.id}
-            style={[
-              styles.cardOption,
-              active && { borderColor: theme.colors.accent },
-            ]}
-            onPress={() =>
-              setSelectedServices((prev) =>
-                active ? prev.filter((x) => x.id !== s.id) : [...prev, s],
-              )
-            }
-          >
-            <Text style={styles.optionTitle}>
-              {s.name} {s.emoji}
-            </Text>
-            <Ionicons
-              name={active ? "checkmark-circle" : "ellipse-outline"}
-              size={20}
-              color={theme.colors.accent}
-            />
-          </TouchableOpacity>
-        );
-      })}
-      <TouchableOpacity
-        style={styles.mainButton}
-        disabled={!selectedServices.length}
-        onPress={() => goTo("date")}
-      >
-        <Text style={styles.mainButtonText}>Continuar</Text>
-      </TouchableOpacity>
-    </>
-  );
+const StepService = () => (
+  <>
+    <Header
+      icon="sparkles-outline"
+      title="Elige tus servicios"
+      subtitle="Puedes seleccionar uno o varios"
+    />
+
+    {SERVICES.map((s) => {
+      const active = selectedServices.find((x) => x.id === s.id);
+
+      return (
+        <TouchableOpacity
+          key={s.id}
+          activeOpacity={0.85}
+          style={[
+            styles.serviceCard,
+            active && styles.serviceCardActive,
+          ]}
+          onPress={() =>
+            setSelectedServices((prev) =>
+              active
+                ? prev.filter((x) => x.id !== s.id)
+                : [...prev, s],
+            )
+          }
+        >
+          <Image source={s.image} style={styles.serviceImage} />
+
+          <View style={styles.serviceContent}>
+            <View style={styles.serviceHeader}>
+              <Text style={styles.serviceName}>{s.name}</Text>
+              <Ionicons
+                name={active ? "checkmark-circle" : "ellipse-outline"}
+                size={22}
+                color={theme.colors.accent}
+              />
+            </View>
+
+            <Text style={styles.serviceDescription}>{s.description}</Text>
+
+            <View style={styles.serviceMeta}>
+              <View style={styles.metaItem}>
+                <Ionicons
+                  name="time-outline"
+                  size={16}
+                  color={theme.colors.accent}
+                />
+                <Text style={styles.metaText}>{s.duration}</Text>
+              </View>
+
+              <View style={styles.metaItem}>
+                <Ionicons
+                  name="cash-outline"
+                  size={16}
+                  color={theme.colors.accent}
+                />
+                <Text style={styles.metaText}>{s.price}</Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    })}
+
+    <TouchableOpacity
+      style={[
+        styles.mainButton,
+        !selectedServices.length && { opacity: 0.5 },
+      ]}
+      disabled={!selectedServices.length}
+      onPress={() => goTo("date")}
+    >
+      <Text style={styles.mainButtonText}>Continuar</Text>
+    </TouchableOpacity>
+  </>
+);
+
 
   const StepDay = () => (
     <>
@@ -506,4 +569,66 @@ const makeStyles = (theme) =>
       shadowOffset: { width: 0, height: 4 },
       elevation: 6,
     },
+    serviceCard: {
+  backgroundColor: theme.colors.card,
+  borderRadius: 16,
+  marginBottom: 16,
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  overflow: "hidden",
+},
+
+serviceCardActive: {
+  borderColor: theme.colors.accent,
+  borderWidth: 2,
+},
+
+serviceImage: {
+  width: "100%",
+  height: 180,
+},
+
+serviceContent: {
+  padding: 16,
+},
+
+serviceHeader: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 6,
+},
+
+serviceName: {
+  fontSize: 16,
+  fontWeight: "700",
+  color: theme.colors.text,
+},
+
+serviceDescription: {
+  fontSize: 14,
+  color: theme.colors.subtext,
+  marginBottom: 12,
+},
+
+serviceMeta: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  paddingTop: 8,
+  borderTopWidth: 1,
+  borderColor: theme.colors.border,
+},
+
+metaItem: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+},
+
+metaText: {
+  fontSize: 14,
+  fontWeight: "600",
+  color: theme.colors.text,
+},
+
   });
