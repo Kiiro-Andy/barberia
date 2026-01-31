@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
 	View,
 	Text,
@@ -6,13 +6,43 @@ import {
 	TouchableOpacity,
 	StyleSheet,
 	Switch,
+	ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
+import { supabase } from "../utils/supabase";
 
 export default function ProfileScreen({ navigation }) {
 	const { theme, toggleTheme, isDark } = useTheme();
 	const styles = makeStyles(theme);
+	const [userData, setUserData] = useState(null);
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		fetchUserData();
+	}, []);
+
+	const fetchUserData = async () => {
+		try {
+			const { data: { user }, error } = await supabase.auth.getUser();
+			
+			if (error) {
+				console.error('Error al obtener usuario:', error);
+				return;
+			}
+
+			if (user) {
+				setUserData({
+					nombre: user.user_metadata?.nombre || user.user_metadata?.display_name || 'Usuario',
+					email: user.email,
+				});
+			}
+		} catch (error) {
+			console.error('Error:', error);
+		} finally {
+			setLoading(false);
+		}
+	};
 
 	return (
 		<View style={styles.container}>
@@ -31,39 +61,46 @@ export default function ProfileScreen({ navigation }) {
 				/>
 			</View>
 
-			<Image
-				source={
-					isDark ? require("../../assets/icon-light.png") : require("../../assets/icon-dark.png")
-				}
-				style={styles.avatar}
-			/>
-			<Text style={styles.name}>Juan Pérez</Text>
-			<Text style={styles.info}>Barbero favorito: Carlos</Text>
-			<Text style={styles.info}>Servicio preferido: Corte + Barba</Text>
+			{loading ? (
+				<ActivityIndicator size="large" color={theme.colors.accent} />
+			) : (
+				<>
+					<Image
+						source={
+							isDark ? require("../../assets/icon-light.png") : require("../../assets/icon-dark.png")
+						}
+						style={styles.avatar}
+					/>
+					<Text style={styles.name}>{userData?.nombre || 'Usuario'}</Text>
+					<Text style={styles.info}>{userData?.email || ''}</Text>
+					<Text style={styles.info}>Barbero favorito: Carlos</Text>
+					<Text style={styles.info}>Servicio preferido: Corte + Barba</Text>
 
-			<TouchableOpacity style={styles.button}>
-				<Text style={styles.buttonText}>Editar perfil</Text>
-			</TouchableOpacity>
+					<TouchableOpacity style={styles.button}>
+						<Text style={styles.buttonText}>Editar perfil</Text>
+					</TouchableOpacity>
 
-			<TouchableOpacity
-				style={[styles.button, styles.logoutButton]}
-				onPress={() => navigation.navigate("Login")}
-			>
-				<Ionicons
-					name="log-out-outline"
-					size={18}
-					color={isDark ? "#fff" : "#fff"}
-					style={{ marginRight: 6 }}
-				/>
-				<Text style={styles.logoutText}>Cerrar sesión</Text>
-			</TouchableOpacity>
+					<TouchableOpacity
+						style={[styles.button, styles.logoutButton]}
+						onPress={() => navigation.navigate("Login")}
+					>
+						<Ionicons
+							name="log-out-outline"
+							size={18}
+							color={isDark ? "#fff" : "#fff"}
+							style={{ marginRight: 6 }}
+						/>
+						<Text style={styles.logoutText}>Cerrar sesión</Text>
+					</TouchableOpacity>
 
-			<TouchableOpacity
-				style={styles.backButton}
-				onPress={() => navigation.navigate("Home")}
-			>
-				<Text style={styles.backText}>← Volver al inicio</Text>
-			</TouchableOpacity>
+					<TouchableOpacity
+						style={styles.backButton}
+						onPress={() => navigation.navigate("Home")}
+					>
+						<Text style={styles.backText}>← Volver al inicio</Text>
+					</TouchableOpacity>
+				</>
+			)}
 		</View>
 	);
 }
