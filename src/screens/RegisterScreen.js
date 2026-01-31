@@ -7,9 +7,11 @@ import {
   StyleSheet,
   Switch,
   Platform,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
+import { supabase } from "../utils/supabase";
 
 export default function RegisterScreen({ navigation }) {
   const { toggleTheme, isDark, theme } = useTheme();
@@ -17,21 +19,94 @@ export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const styles = makeStyles(theme);
+
+  const handleRegister = async () => {
+    // Validaciones
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert("Error", "Por favor completa todos los campos");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Las contraseñas no coinciden");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Registro en la tabla auth.users de Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password: password,
+        options: {
+          data: {
+            nombre: name.trim(),
+            display_name: name.trim()
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Error completo:', error);
+        Alert.alert("Error de registro", error.message || "No se pudo completar el registro");
+      } else {
+        console.log('Respuesta de Supabase:', data);
+        
+        // Verificar si el usuario fue creado
+        if (data.user) {
+          Alert.alert(
+            "¡Registro exitoso!",
+            "Tu cuenta ha sido creada. Por favor inicia sesión.",
+            [
+              {
+                text: "OK",
+                onPress: () => navigation.navigate("Login")
+              }
+            ]
+          );
+        } else {
+          Alert.alert(
+            "Atención",
+            "Revisa tu correo para confirmar tu cuenta antes de iniciar sesión.",
+            [
+              {
+                text: "OK",
+                onPress: () => navigation.navigate("Login")
+              }
+            ]
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error catch:', error);
+      Alert.alert("Error", "Ocurrió un error durante el registro. Verifica tu conexión a internet.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   return (
     <View style={styles.container}>
       {/* Encabezado */}
       <Ionicons name="cut-outline" size={26} color={theme.colors.accent} />
       <View
-				style={{
-					width: 40,
-					height: 2,
-					backgroundColor: theme.colors.secondary, // vino
-					marginBottom: 10,
-				}}
-			/>
+                style={{
+                    width: 40,
+                    height: 2,
+                    backgroundColor: theme.colors.secondary, // vino
+                    marginBottom: 10,
+                }}
+            />
       <Text style={styles.title}>Crear cuenta</Text>
       <Text style={styles.subtitle}>Regístrate para continuar</Text>
 
@@ -50,6 +125,7 @@ export default function RegisterScreen({ navigation }) {
             placeholderTextColor="#aaa"
             value={name}
             onChangeText={setName}
+            editable={!loading}
           />
         </View>
 
@@ -66,6 +142,9 @@ export default function RegisterScreen({ navigation }) {
             placeholderTextColor="#aaa"
             value={email}
             onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            editable={!loading}
           />
         </View>
 
@@ -83,6 +162,7 @@ export default function RegisterScreen({ navigation }) {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+            editable={!loading}
           />
         </View>
 
@@ -100,14 +180,18 @@ export default function RegisterScreen({ navigation }) {
             secureTextEntry
             value={confirmPassword}
             onChangeText={setConfirmPassword}
+            editable={!loading}
           />
         </View>
 
         <TouchableOpacity
-          style={styles.button}
-          onPress={() => alert("Registro exitoso")}
+          style={[styles.button, loading && { opacity: 0.6 }]}
+          onPress={handleRegister}
+          disabled={loading}
         >
-          <Text style={styles.buttonText}>Registrarse</Text>
+          <Text style={styles.buttonText}>
+            {loading ? "Registrando..." : "Registrarse"}
+          </Text>
         </TouchableOpacity>
       </View>
 
