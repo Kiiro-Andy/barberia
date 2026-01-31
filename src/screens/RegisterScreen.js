@@ -47,6 +47,12 @@ export default function RegisterScreen({ navigation }) {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password: password,
+        options: {
+          data: {
+            nombre: name.trim(),
+            display_name: name.trim()
+          }
+        }
       });
 
       if (error) {

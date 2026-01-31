@@ -1,13 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
+import { supabase } from "../utils/supabase";
 
 const STEPS = ["barber", "service", "date", "time", "confirm", "done"];
 
@@ -46,6 +49,18 @@ export default function BookingScreen({ navigation }) {
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [timeSlots, setTimeSlots] = useState([]);
+  const [userId, setUserId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    getUser();
+  }, []);
 
   const buildTimeSlots = () =>
     BASE_TIMES.map((t) => ({
@@ -77,6 +92,44 @@ export default function BookingScreen({ navigation }) {
   };
 
   const servicesLabel = selectedServices.map((s) => s.name).join(" + ") || null;
+
+  const saveAppointment = async () => {
+    if (!userId) {
+      Alert.alert("Error", "Debes iniciar sesión para agendar una cita");
+      return false;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .insert([
+          {
+            user_id: userId,
+            barber_name: selectedBarber.name,
+            services: selectedServices.map(s => s.name).join(', '),
+            day: selectedDay,
+            time: selectedTime,
+            status: 'confirmed'
+          }
+        ])
+        .select();
+
+      if (error) {
+        console.error('Error al guardar la cita:', error);
+        Alert.alert("Error", "No se pudo guardar la cita. Intenta de nuevo.");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error:', error);
+      Alert.alert("Error", "Ocurrió un error inesperado");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /* ---------------- UI helpers ---------------- */
 
@@ -272,21 +325,38 @@ export default function BookingScreen({ navigation }) {
     </>
   );
 
-  const StepConfirm = () => (
-    <>
-      <Header
-        icon="checkmark-done-outline"
-        title="Confirmar cita"
-        hideSummary
-      />
+  const StepConfirm = () => {
+    const handleConfirm = async () => {
+      const success = await saveAppointment();
+      if (success) {
+        goTo("done");
+      }
+    };
 
-      <Receipt title="Resumen de tu cita" footerText="Confirma tu cita" />
+    return (
+      <>
+        <Header
+          icon="checkmark-done-outline"
+          title="Confirmar cita"
+          hideSummary
+        />
 
-      <TouchableOpacity style={styles.mainButton} onPress={() => goTo("done")}>
-        <Text style={styles.mainButtonText}>Confirmar</Text>
-      </TouchableOpacity>
-    </>
-  );
+        <Receipt title="Resumen de tu cita" footerText="Confirma tu cita" />
+
+        <TouchableOpacity 
+          style={[styles.mainButton, loading && { opacity: 0.6 }]} 
+          onPress={handleConfirm}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={theme.colors.primary} />
+          ) : (
+            <Text style={styles.mainButtonText}>Confirmar</Text>
+          )}
+        </TouchableOpacity>
+      </>
+    );
+  };
 
   const StepDone = () => (
     <>
