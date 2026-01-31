@@ -6,17 +6,69 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
+  Alert,
 } from "react-native";
 import { Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
+import { supabase } from "../utils/supabase";
 
 export default function LoginScreen({ navigation }) {
   const { toggleTheme, isDark, theme } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const styles = makeStyles(theme);
+
+  const handleLogin = async () => {
+    // Validaciones
+    if (!email.trim()) {
+      Alert.alert("Error", "Por favor ingresa tu correo");
+      return;
+    }
+
+    if (!password) {
+      Alert.alert("Error", "Por favor ingresa tu contraseña");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password: password,
+      });
+
+      console.log('Respuesta de login:', { data, error });
+
+      if (error) {
+        console.error('Error de login:', error);
+        
+        // Mensajes de error más específicos
+        if (error.message.includes('Invalid login credentials')) {
+          Alert.alert("Error", "Correo o contraseña incorrectos");
+        } else if (error.message.includes('Email not confirmed')) {
+          Alert.alert("Error", "Por favor confirma tu correo electrónico");
+        } else {
+          Alert.alert("Error de inicio de sesión", error.message);
+        }
+      } else {
+        console.log('Usuario autenticado:', data.user);
+        // Navegar a Home si el login fue exitoso
+        navigation.navigate("Home");
+      }
+    } catch (error) {
+      console.error('Error catch:', error);
+      Alert.alert(
+        "Error inesperado", 
+        "No se pudo iniciar sesión. Verifica tu conexión a internet."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -48,6 +100,9 @@ export default function LoginScreen({ navigation }) {
             placeholderTextColor="#aaa"
             value={email}
             onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            editable={!loading}
           />
         </View>
 
@@ -65,14 +120,18 @@ export default function LoginScreen({ navigation }) {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+            editable={!loading}
           />
         </View>
 
         <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("Home")}
+          style={[styles.button, loading && { opacity: 0.6 }]}
+          onPress={handleLogin}
+          disabled={loading}
         >
-          <Text style={styles.buttonText}>Entrar</Text>
+          <Text style={styles.buttonText}>
+            {loading ? "Iniciando sesión..." : "Entrar"}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -145,3 +204,4 @@ const makeStyles = (theme) =>
     footerText: { color: theme.colors.secondary, marginTop: 20, fontSize: 13 },
     linkText: { color: "#1A73E8", fontWeight: "700" },
   });
+
