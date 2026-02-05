@@ -2,10 +2,9 @@
 import 'react-native-url-polyfill/auto'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@supabase/supabase-js'
-import { LockFunc } from '@supabase/gotrue-js'
 
 // Implementación de un lock personalizado para React Native
-const customLock: LockFunc = async (name, acquireTimeout, fn) => {
+const customLock = async (name: string, acquireTimeout: number, fn: () => Promise<any>) => {
   // Simplemente ejecuta la función sin bloqueo real
   // Esto es seguro en React Native ya que es single-threaded
   return await fn();
