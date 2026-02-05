@@ -63,10 +63,12 @@ export default function AppointmentsScreen({ navigation }) {
     fetchAppointments();
   };
 
-  const getServiceIcon = (services) => {
-    if (services.toLowerCase().includes('corte')) return 'cut-outline';
-    if (services.toLowerCase().includes('barba')) return 'man-outline';
-    if (services.toLowerCase().includes('ceja')) return 'eye-outline';
+const getServiceIcon = (services) => {
+    if (!services) return 'sparkles-outline';
+    const lowerServices = services.toLowerCase();
+    if (lowerServices.includes('corte')) return 'cut-outline';
+    if (lowerServices.includes('barba')) return 'man-outline';
+    if (lowerServices.includes('ceja')) return 'eye-outline';
     return 'sparkles-outline';
   };
 
@@ -101,7 +103,7 @@ export default function AppointmentsScreen({ navigation }) {
       ) : (
         appointments.map((appointment) => {
           // Formatear la fecha
-          const fecha = new Date(appointment.fecha + 'T00:00:00');
+          const fecha = new Date((appointment.fecha || '2025-01-01') + 'T00:00:00');
           const fechaStr = fecha.toLocaleDateString('es-MX', { 
             weekday: 'short',
             year: 'numeric', 
@@ -112,7 +114,7 @@ export default function AppointmentsScreen({ navigation }) {
           return (
             <View key={appointment.id} style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.serviceName}>{appointment.services}</Text>
+                <Text style={styles.serviceName}>{appointment.services || 'Servicio'}</Text>
                 <Ionicons
                   name={getServiceIcon(appointment.services)}
                   size={20}
@@ -122,7 +124,7 @@ export default function AppointmentsScreen({ navigation }) {
 
               <View style={styles.barberInfo}>
                 <Ionicons name="person-outline" size={16} color={theme.colors.accent} />
-                <Text style={styles.barberText}>{appointment.barber_name}</Text>
+                <Text style={styles.barberText}>{appointment.barber_name || 'Barbero'}</Text>
               </View>
 
               <View style={styles.cardMeta}>
@@ -133,13 +135,15 @@ export default function AppointmentsScreen({ navigation }) {
 
                 <View style={styles.metaItem}>
                   <Ionicons name="time-outline" size={16} color="#666" />
-                  <Text style={styles.metaText}>{appointment.time}</Text>
+                  <Text style={styles.metaText}>{appointment.hora_inicio || appointment.time || '--:--'}</Text>
                 </View>
               </View>
 
               <View style={styles.statusBadge}>
                 <Text style={styles.statusText}>
-                  {appointment.status === 'confirmed' ? '✓ Confirmada' : appointment.status}
+                  {appointment.estado === 'pendiente' ? '⏳ Pendiente' : 
+                   appointment.estado === 'confirmed' ? '✓ Confirmada' : 
+                   appointment.estado || appointment.status || 'Estado'}
                 </Text>
               </View>
             </View>
