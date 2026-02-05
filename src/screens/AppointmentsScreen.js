@@ -33,7 +33,7 @@ export default function AppointmentsScreen({ navigation }) {
         .from('appointments')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('fecha', { ascending: false });
 
       if (error) {
         console.error('Error al cargar citas:', error);
@@ -99,41 +99,52 @@ export default function AppointmentsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       ) : (
-        appointments.map((appointment) => (
-          <View key={appointment.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.serviceName}>{appointment.services}</Text>
-              <Ionicons
-                name={getServiceIcon(appointment.services)}
-                size={20}
-                color={theme.colors.accent}
-              />
-            </View>
+        appointments.map((appointment) => {
+          // Formatear la fecha
+          const fecha = new Date(appointment.fecha + 'T00:00:00');
+          const fechaStr = fecha.toLocaleDateString('es-MX', { 
+            weekday: 'short',
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          });
 
-            <View style={styles.barberInfo}>
-              <Ionicons name="person-outline" size={16} color={theme.colors.accent} />
-              <Text style={styles.barberText}>{appointment.barber_name}</Text>
-            </View>
-
-            <View style={styles.cardMeta}>
-              <View style={styles.metaItem}>
-                <Ionicons name="calendar-outline" size={16} color="#666" />
-                <Text style={styles.metaText}>{appointment.day}</Text>
+          return (
+            <View key={appointment.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.serviceName}>{appointment.services}</Text>
+                <Ionicons
+                  name={getServiceIcon(appointment.services)}
+                  size={20}
+                  color={theme.colors.accent}
+                />
               </View>
 
-              <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={16} color="#666" />
-                <Text style={styles.metaText}>{appointment.time}</Text>
+              <View style={styles.barberInfo}>
+                <Ionicons name="person-outline" size={16} color={theme.colors.accent} />
+                <Text style={styles.barberText}>{appointment.barber_name}</Text>
+              </View>
+
+              <View style={styles.cardMeta}>
+                <View style={styles.metaItem}>
+                  <Ionicons name="calendar-outline" size={16} color="#666" />
+                  <Text style={styles.metaText}>{fechaStr}</Text>
+                </View>
+
+                <View style={styles.metaItem}>
+                  <Ionicons name="time-outline" size={16} color="#666" />
+                  <Text style={styles.metaText}>{appointment.time}</Text>
+                </View>
+              </View>
+
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>
+                  {appointment.status === 'confirmed' ? '✓ Confirmada' : appointment.status}
+                </Text>
               </View>
             </View>
-
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>
-                {appointment.status === 'confirmed' ? '✓ Confirmada' : appointment.status}
-              </Text>
-            </View>
-          </View>
-        ))
+          );
+        })
       )}
 
       <TouchableOpacity
