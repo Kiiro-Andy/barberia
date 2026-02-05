@@ -4,39 +4,12 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
   Animated,
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
-
-const SERVICES = [
-  {
-    id: "1",
-    name: "Corte de cabello",
-    image: require("../../assets/cut1.jpg"),
-    description: "Corte clásico o moderno adaptado a tu estilo.",
-    duration: "30 min",
-    price: "$150 MXN",
-  },
-  {
-    id: "2",
-    name: "Barba",
-    image: require("../../assets/cut2.jpg"),
-    description: "Perfilado y arreglo profesional de barba.",
-    duration: "20 min",
-    price: "$100 MXN",
-  },
-  {
-    id: "3",
-    name: "Cejas",
-    image: require("../../assets/cut3.jpg"),
-    description: "Diseño y limpieza de cejas.",
-    duration: "10 min",
-    price: "$50 MXN",
-  },
-];
+import { supabase } from "../utils/supabase";
 
 export default function HomeScreen({ navigation }) {
   const { theme, isDark } = useTheme();
@@ -46,6 +19,7 @@ export default function HomeScreen({ navigation }) {
   const buttonsAnim = useRef(new Animated.Value(0)).current;
 
   const [expandedService, setExpandedService] = useState(null);
+  const [services, setServices] = useState([]);
 
   useEffect(() => {
     Animated.stagger(150, [
@@ -60,6 +34,18 @@ export default function HomeScreen({ navigation }) {
         useNativeDriver: true,
       }),
     ]).start();
+
+    const fetchServices = async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, nombre, precio, descripcion')
+        .order('nombre');
+      
+      if (data && !error) {
+        setServices(data);
+      }
+    };
+    fetchServices();
   }, []);
 
   const toggleService = (id) => {
@@ -180,7 +166,7 @@ export default function HomeScreen({ navigation }) {
             ],
           }}
         >
-          {SERVICES.map((service) => {
+          {services.map((service) => {
             const isOpen = expandedService === service.id;
 
             return (
@@ -191,8 +177,8 @@ export default function HomeScreen({ navigation }) {
                   activeOpacity={0.8}
                 >
                   <View style={styles.serviceHeaderLeft}>
-                    <Text style={styles.serviceName}>{service.name}</Text>
-                    <Text style={styles.servicePrice}>{service.price}</Text>
+                    <Text style={styles.serviceName}>{service.nombre}</Text>
+                    <Text style={styles.servicePrice}>{service.precio}</Text>
                   </View>
 
                   <Ionicons
@@ -204,30 +190,27 @@ export default function HomeScreen({ navigation }) {
 
                 {isOpen && (
                   <View style={styles.serviceContent}>
-                    <Image source={service.image} style={styles.serviceImage} />
-
-                    <Text style={styles.serviceDescription}>
-                      {service.description}
-                    </Text>
-
+                    {service.descripcion && (
+                      <Text style={styles.serviceDescription}>
+                        {service.descripcion}
+                      </Text>
+                    )}
                     <View style={styles.serviceMeta}>
                       <View style={styles.metaItem}>
-                        <Ionicons name="time-outline" size={16} color={theme.colors.info} />
-                        <Text style={styles.metaText}>{service.duration}</Text>
+                        <Ionicons name="sparkles-outline" size={16} color={theme.colors.info} />
+                        <Text style={styles.metaText}>{service.nombre}</Text>
                       </View>
 
                       <View style={styles.metaItem}>
                         <Ionicons name="cash-outline" size={16} color={theme.colors.info} />
-                        <Text style={styles.metaText}>{service.price}</Text>
+                        <Text style={styles.metaText}>{service.precio}</Text>
                       </View>
                     </View>
 
                     <TouchableOpacity
                       style={styles.bookButton}
                       onPress={() =>
-                        navigation.navigate("Booking", {
-                          service,
-                        })
+                        navigation.navigate("Booking")
                       }
                     >
                       <Text style={styles.bookButtonText}>
