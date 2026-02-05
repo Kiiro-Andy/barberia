@@ -9,6 +9,52 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
+import { Calendar } from "react-native-calendars";
+import { LocaleConfig } from "react-native-calendars";
+
+LocaleConfig.locales["es"] = {
+  monthNames: [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ],
+  monthNamesShort: [
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+  ],
+  dayNames: [
+    "Domingo",
+    "Lunes",
+    "Martes",
+    "Miércoles",
+    "Jueves",
+    "Viernes",
+    "Sábado",
+  ],
+  dayNamesShort: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
+  today: "Hoy",
+};
+
+LocaleConfig.defaultLocale = "es";
 
 const STEPS = ["barber", "service", "date", "time", "confirm", "done"];
 
@@ -22,42 +68,31 @@ export default function BookingScreen({ navigation }) {
     { id: 3, name: "Edweed", specialty: "Degradado HD 🤌" },
   ];
 
-const SERVICES = [
-  {
-    id: "corte",
-    name: "Corte de cabello",
-    image: require("../../assets/cut1.jpg"),
-    description: "Corte clásico o moderno adaptado a tu estilo.",
-    duration: "30 min",
-    price: "$150 MXN",
-  },
-  {
-    id: "barba",
-    name: "Barba",
-    image: require("../../assets/cut2.jpg"),
-    description: "Perfilado y arreglo profesional de barba.",
-    duration: "20 min",
-    price: "$100 MXN",
-  },
-  {
-    id: "ceja",
-    name: "Cejas",
-    image: require("../../assets/cut3.jpg"),
-    description: "Diseño y limpieza de cejas.",
-    duration: "10 min",
-    price: "$50 MXN",
-  },
-];
-
-
-  const DAYS = [
-    "Lunes",
-    "Martes",
-    "Miércoles",
-    "Jueves",
-    "Viernes",
-    "Sábado",
-    "Domingo",
+  const SERVICES = [
+    {
+      id: "corte",
+      name: "Corte de cabello",
+      image: require("../../assets/cut1.jpg"),
+      description: "Corte clásico o moderno adaptado a tu estilo.",
+      duration: "30 min",
+      price: "$150 MXN",
+    },
+    {
+      id: "barba",
+      name: "Barba",
+      image: require("../../assets/cut2.jpg"),
+      description: "Perfilado y arreglo profesional de barba.",
+      duration: "20 min",
+      price: "$100 MXN",
+    },
+    {
+      id: "ceja",
+      name: "Cejas",
+      image: require("../../assets/cut3.jpg"),
+      description: "Diseño y limpieza de cejas.",
+      duration: "10 min",
+      price: "$50 MXN",
+    },
   ];
 
   const BASE_TIMES = ["10:00", "11:00", "12:00", "16:00", "17:00", "18:30"];
@@ -66,7 +101,7 @@ const SERVICES = [
   const [history, setHistory] = useState([]);
   const [selectedBarber, setSelectedBarber] = useState(null);
   const [selectedServices, setSelectedServices] = useState([]);
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [timeSlots, setTimeSlots] = useState([]);
 
@@ -103,6 +138,19 @@ const SERVICES = [
 
   /* ---------------- UI helpers ---------------- */
 
+  const formatDateES = (dateString) => {
+    if (!dateString) return "";
+
+    const date = new Date(dateString + "T00:00:00");
+
+    return date.toLocaleDateString("es-MX", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
   const StepIndicator = () => {
     const currentIndex = STEPS.indexOf(step);
     return (
@@ -124,7 +172,10 @@ const SERVICES = [
     <View style={styles.miniSummary}>
       {selectedBarber && <Chip icon="person" text={selectedBarber.name} />}
       {servicesLabel && <Chip icon="sparkles" text={servicesLabel} />}
-      {selectedDay && <Chip icon="calendar" text={selectedDay} />}
+      {selectedDate && (
+        <Chip icon="calendar" text={formatDateES(selectedDate)} />
+      )}
+
       {selectedTime && <Chip icon="time" text={selectedTime} />}
     </View>
   );
@@ -160,10 +211,10 @@ const SERVICES = [
         </View>
       )}
 
-      {selectedDay && (
+      {selectedDate && (
         <View style={styles.receiptRow}>
-          <Text style={styles.receiptLabel}>Día</Text>
-          <Text style={styles.receiptValue}>{selectedDay}</Text>
+          <Text style={styles.receiptLabel}>Fecha</Text>
+          <Text style={styles.receiptValue}>{formatDateES(selectedDate)}</Text>
         </View>
       )}
 
@@ -216,103 +267,126 @@ const SERVICES = [
     </>
   );
 
-const StepService = () => (
-  <>
-    <Header
-      icon="sparkles-outline"
-      title="Elige tus servicios"
-      subtitle="Puedes seleccionar uno o varios"
-    />
-
-    {SERVICES.map((s) => {
-      const active = selectedServices.find((x) => x.id === s.id);
-
-      return (
-        <TouchableOpacity
-          key={s.id}
-          activeOpacity={0.85}
-          style={[
-            styles.serviceCard,
-            active && styles.serviceCardActive,
-          ]}
-          onPress={() =>
-            setSelectedServices((prev) =>
-              active
-                ? prev.filter((x) => x.id !== s.id)
-                : [...prev, s],
-            )
-          }
-        >
-          <Image source={s.image} style={styles.serviceImage} />
-
-          <View style={styles.serviceContent}>
-            <View style={styles.serviceHeader}>
-              <Text style={styles.serviceName}>{s.name}</Text>
-              <Ionicons
-                name={active ? "checkmark-circle" : "ellipse-outline"}
-                size={22}
-                color={theme.colors.accent}
-              />
-            </View>
-
-            <Text style={styles.serviceDescription}>{s.description}</Text>
-
-            <View style={styles.serviceMeta}>
-              <View style={styles.metaItem}>
-                <Ionicons
-                  name="time-outline"
-                  size={16}
-                  color={theme.colors.accent}
-                />
-                <Text style={styles.metaText}>{s.duration}</Text>
-              </View>
-
-              <View style={styles.metaItem}>
-                <Ionicons
-                  name="cash-outline"
-                  size={16}
-                  color={theme.colors.accent}
-                />
-                <Text style={styles.metaText}>{s.price}</Text>
-              </View>
-            </View>
-          </View>
-        </TouchableOpacity>
-      );
-    })}
-
-    <TouchableOpacity
-      style={[
-        styles.mainButton,
-        !selectedServices.length && { opacity: 0.5 },
-      ]}
-      disabled={!selectedServices.length}
-      onPress={() => goTo("date")}
-    >
-      <Text style={styles.mainButtonText}>Continuar</Text>
-    </TouchableOpacity>
-  </>
-);
-
-
-  const StepDay = () => (
+  const StepService = () => (
     <>
-      <Header icon="calendar-outline" title="Selecciona el día" />
-      {DAYS.map((d) => (
-        <TouchableOpacity
-          key={d}
-          style={styles.cardOption}
-          onPress={() => {
-            setSelectedDay(d);
+      <Header
+        icon="sparkles-outline"
+        title="Elige tus servicios"
+        subtitle="Puedes seleccionar uno o varios"
+      />
+
+      {SERVICES.map((s) => {
+        const active = selectedServices.find((x) => x.id === s.id);
+
+        return (
+          <TouchableOpacity
+            key={s.id}
+            activeOpacity={0.85}
+            style={[styles.serviceCard, active && styles.serviceCardActive]}
+            onPress={() =>
+              setSelectedServices((prev) =>
+                active ? prev.filter((x) => x.id !== s.id) : [...prev, s],
+              )
+            }
+          >
+            <Image source={s.image} style={styles.serviceImage} />
+
+            <View style={styles.serviceContent}>
+              <View style={styles.serviceHeader}>
+                <Text style={styles.serviceName}>{s.name}</Text>
+                <Ionicons
+                  name={active ? "checkmark-circle" : "ellipse-outline"}
+                  size={22}
+                  color={theme.colors.accent}
+                />
+              </View>
+
+              <Text style={styles.serviceDescription}>{s.description}</Text>
+
+              <View style={styles.serviceMeta}>
+                <View style={styles.metaItem}>
+                  <Ionicons
+                    name="time-outline"
+                    size={16}
+                    color={theme.colors.accent}
+                  />
+                  <Text style={styles.metaText}>{s.duration}</Text>
+                </View>
+
+                <View style={styles.metaItem}>
+                  <Ionicons
+                    name="cash-outline"
+                    size={16}
+                    color={theme.colors.accent}
+                  />
+                  <Text style={styles.metaText}>{s.price}</Text>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+
+      <TouchableOpacity
+        style={[
+          styles.mainButton,
+          !selectedServices.length && { opacity: 0.5 },
+        ]}
+        disabled={!selectedServices.length}
+        onPress={() => goTo("date")}
+      >
+        <Text style={styles.mainButtonText}>Continuar</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const StepDate = () => {
+    const today = new Date().toISOString().split("T")[0];
+
+    return (
+      <>
+        <Header
+          icon="calendar-outline"
+          title="Selecciona una fecha"
+          subtitle="Elige el día de tu cita"
+        />
+
+        <Calendar
+          minDate={today}
+          onDayPress={(day) => {
+            setSelectedDate(day.dateString);
             setTimeSlots(buildTimeSlots());
             goTo("time");
           }}
-        >
-          <Text style={styles.optionTitle}>{d}</Text>
-        </TouchableOpacity>
-      ))}
-    </>
-  );
+          markedDates={
+            selectedDate
+              ? {
+                  [selectedDate]: {
+                    selected: true,
+                    selectedColor: theme.colors.accent,
+                  },
+                }
+              : {}
+          }
+          theme={{
+            backgroundColor: theme.colors.background,
+            calendarBackground: theme.colors.card,
+            dayTextColor: theme.colors.text,
+            monthTextColor: theme.colors.text,
+            arrowColor: theme.colors.accent,
+            todayTextColor: theme.colors.accent,
+            selectedDayTextColor: theme.colors.primary,
+          }}
+          style={{
+            borderRadius: 16,
+            padding: 10,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+          }}
+        />
+      </>
+    );
+  };
 
   const StepTime = () => (
     <>
@@ -381,7 +455,7 @@ const StepService = () => (
           {
             barber: <StepBarber />,
             service: <StepService />,
-            date: <StepDay />,
+            date: <StepDate />,
             time: <StepTime />,
             confirm: <StepConfirm />,
             done: <StepDone />,
@@ -485,9 +559,9 @@ const makeStyles = (theme) =>
       marginBottom: 10,
       alignItems: "center",
     },
-    timeText: { 
-      fontSize: 16, 
-      fontWeight: "600", 
+    timeText: {
+      fontSize: 16,
+      fontWeight: "600",
       color: theme.colors.text,
     },
 
@@ -570,65 +644,64 @@ const makeStyles = (theme) =>
       elevation: 6,
     },
     serviceCard: {
-  backgroundColor: theme.colors.card,
-  borderRadius: 16,
-  marginBottom: 16,
-  borderWidth: 1,
-  borderColor: theme.colors.border,
-  overflow: "hidden",
-},
+      backgroundColor: theme.colors.card,
+      borderRadius: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      overflow: "hidden",
+    },
 
-serviceCardActive: {
-  borderColor: theme.colors.accent,
-  borderWidth: 2,
-},
+    serviceCardActive: {
+      borderColor: theme.colors.accent,
+      borderWidth: 2,
+    },
 
-serviceImage: {
-  width: "100%",
-  height: 180,
-},
+    serviceImage: {
+      width: "100%",
+      height: 180,
+    },
 
-serviceContent: {
-  padding: 16,
-},
+    serviceContent: {
+      padding: 16,
+    },
 
-serviceHeader: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: 6,
-},
+    serviceHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 6,
+    },
 
-serviceName: {
-  fontSize: 16,
-  fontWeight: "700",
-  color: theme.colors.text,
-},
+    serviceName: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: theme.colors.text,
+    },
 
-serviceDescription: {
-  fontSize: 14,
-  color: theme.colors.subtext,
-  marginBottom: 12,
-},
+    serviceDescription: {
+      fontSize: 14,
+      color: theme.colors.subtext,
+      marginBottom: 12,
+    },
 
-serviceMeta: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  paddingTop: 8,
-  borderTopWidth: 1,
-  borderColor: theme.colors.border,
-},
+    serviceMeta: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderColor: theme.colors.border,
+    },
 
-metaItem: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 6,
-},
+    metaItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
 
-metaText: {
-  fontSize: 14,
-  fontWeight: "600",
-  color: theme.colors.text,
-},
-
+    metaText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.text,
+    },
   });
