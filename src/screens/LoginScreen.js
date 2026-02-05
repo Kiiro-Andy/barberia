@@ -56,7 +56,28 @@ export default function LoginScreen({ navigation }) {
         }
       } else {
         console.log('Usuario autenticado:', data.user);
-        // Navegar a Home si el login fue exitoso
+        
+        // Verificar el rol del usuario
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('rol')
+          .eq('id', data.user.id)
+          .single();
+
+        if (userError) {
+          console.error('Error al obtener datos del usuario:', userError);
+          await supabase.auth.signOut();
+          Alert.alert("Error", "No se pudo verificar tu información de usuario");
+          return;
+        }
+
+        if (userData.rol !== 'cliente') {
+          await supabase.auth.signOut();
+          Alert.alert("Acceso denegado", "Esta aplicación es solo para clientes");
+          return;
+        }
+
+        // Navegar a Home si el login fue exitoso y es cliente
         navigation.navigate("Home");
       }
     } catch (error) {
