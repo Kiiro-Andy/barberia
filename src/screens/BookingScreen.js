@@ -26,12 +26,6 @@ export default function BookingScreen({ navigation }) {
     { id: 3, name: "Edweed", specialty: "Degradado HD 🤌" },
   ];
 
-  const SERVICES = [
-    { id: "corte", name: "Corte", emoji: "💇‍♂️" },
-    { id: "barba", name: "Barba", emoji: "🧔" },
-    { id: "ceja", name: "Ceja", emoji: "👁️" },
-  ];
-
   const BASE_TIMES = ["10:00", "11:00", "12:00", "16:00", "17:00", "18:30"];
 
   const [step, setStep] = useState("barber");
@@ -44,6 +38,8 @@ export default function BookingScreen({ navigation }) {
   const [timeSlots, setTimeSlots] = useState([]);
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [services, setServices] = useState([]);
+  const [occupiedTimes, setOccupiedTimes] = useState([]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -53,13 +49,43 @@ export default function BookingScreen({ navigation }) {
       }
     };
     getUser();
+
+    const fetchServices = async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, nombre, precio, descripcion')
+        .order('nombre');
+      
+      if (data && !error) {
+        setServices(data);
+      }
+    };
+    fetchServices();
   }, []);
 
-  const buildTimeSlots = () =>
-    BASE_TIMES.map((t) => ({
+  const buildTimeSlots = () => {
+    const formattedDate = selectedDate.toISOString().split('T')[0];
+    
+    return BASE_TIMES.map((t) => ({
       time: t,
-      available: Math.random() > 0.35,
+      available: !occupiedTimes.includes(t),
     }));
+  };
+
+  const fetchOccupiedTimes = async () => {
+    const formattedDate = selectedDate.toISOString().split('T')[0];
+    
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('hora_inicio')
+      .eq('fecha', formattedDate)
+      .eq('status', 'confirmed');
+    
+    if (data && !error) {
+      const times = data.map(appointment => appointment.hora_inicio);
+      setOccupiedTimes(times);
+    }
+  };
 
   const goTo = (next) => {
     setHistory((h) => [...h, step]);
@@ -105,7 +131,7 @@ export default function BookingScreen({ navigation }) {
             barber_name: selectedBarber.name,
             services: selectedServices.map(s => s.name).join(', '),
             fecha: formattedDate,
-            time: selectedTime,
+            hora_inicio: selectedTime,
             status: 'confirmed'
           }
         ])
@@ -263,7 +289,7 @@ export default function BookingScreen({ navigation }) {
   const StepService = () => (
     <>
       <Header icon="sparkles-outline" title="Servicios" />
-      {SERVICES.map((s) => {
+      {services.map((s) => {
         const active = selectedServices.find((x) => x.id === s.id);
         return (
           <TouchableOpacity
@@ -278,9 +304,14 @@ export default function BookingScreen({ navigation }) {
               )
             }
           >
-            <Text style={styles.optionTitle}>
-              {s.name} {s.emoji}
-            </Text>
+            <View>
+              <Text style={styles.optionTitle}>
+                {s.nombre}
+              </Text>
+              <Text style={styles.optionSubtitle}>
+                {s.precio}
+              </Text>
+            </View>
             <Ionicons
               name={active ? "checkmark-circle" : "ellipse-outline"}
               size={20}
@@ -304,14 +335,13 @@ export default function BookingScreen({ navigation }) {
     const minDate = today;
     const maxDate = new Date(today.getFullYear(), today.getMonth() + 3, today.getDate());
 
-    const onDateChange = (event, date) => {
+    const onDateChange = async (event, date) => {
       setShowDatePicker(Platform.OS === 'ios');
       if (date) {
         setSelectedDate(date);
-        if (Platform.OS === 'android') {
-          setTimeSlots(buildTimeSlots());
-          goTo("time");
-        }
+        await fetchOccupiedTimes();
+        setTimeSlots(buildTimeSlots());
+        goTo("time");
       }
     };
 
@@ -354,8 +384,9 @@ export default function BookingScreen({ navigation }) {
         {Platform.OS === 'ios' && (
           <TouchableOpacity
             style={styles.mainButton}
-            onPress={() => {
+            onPress={async () => {
               setShowDatePicker(false);
+              await fetchOccupiedTimes();
               setTimeSlots(buildTimeSlots());
               goTo("time");
             }}
