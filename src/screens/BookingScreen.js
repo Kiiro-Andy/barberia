@@ -217,11 +217,12 @@ export default function BookingScreen({ navigation }) {
           </View>
         )}
 
-      <View style={styles.receiptLineDashed} />
+        <View style={styles.receiptLineDashed} />
 
-      {footerText && <Text style={styles.receiptFooter}>{footerText}</Text>}
-    </View>
-  );
+        {footerText && <Text style={styles.receiptFooter}>{footerText}</Text>}
+      </View>
+    );
+  };
 
   const Header = ({ icon, title, subtitle, hideSummary }) => (
     <>
