@@ -7,7 +7,9 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 import { supabase } from "../utils/supabase";
@@ -30,23 +32,14 @@ export default function BookingScreen({ navigation }) {
     { id: "ceja", name: "Ceja", emoji: "👁️" },
   ];
 
-  const DAYS = [
-    "Lunes",
-    "Martes",
-    "Miércoles",
-    "Jueves",
-    "Viernes",
-    "Sábado",
-    "Domingo",
-  ];
-
   const BASE_TIMES = ["10:00", "11:00", "12:00", "16:00", "17:00", "18:30"];
 
   const [step, setStep] = useState("barber");
   const [history, setHistory] = useState([]);
   const [selectedBarber, setSelectedBarber] = useState(null);
   const [selectedServices, setSelectedServices] = useState([]);
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedTime, setSelectedTime] = useState(null);
   const [timeSlots, setTimeSlots] = useState([]);
   const [userId, setUserId] = useState(null);
@@ -86,7 +79,7 @@ export default function BookingScreen({ navigation }) {
     setHistory([]);
     setSelectedBarber(null);
     setSelectedServices([]);
-    setSelectedDay(null);
+    setSelectedDate(new Date());
     setSelectedTime(null);
     setTimeSlots([]);
   };
@@ -101,6 +94,9 @@ export default function BookingScreen({ navigation }) {
 
     setLoading(true);
     try {
+      // Formatear fecha como YYYY-MM-DD
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      
       const { data, error } = await supabase
         .from('appointments')
         .insert([
@@ -108,7 +104,7 @@ export default function BookingScreen({ navigation }) {
             user_id: userId,
             barber_name: selectedBarber.name,
             services: selectedServices.map(s => s.name).join(', '),
-            day: selectedDay,
+            fecha: formattedDate,
             time: selectedTime,
             status: 'confirmed'
           }
@@ -150,14 +146,23 @@ export default function BookingScreen({ navigation }) {
     );
   };
 
-  const MiniSummary = () => (
-    <View style={styles.miniSummary}>
-      {selectedBarber && <Chip icon="person" text={selectedBarber.name} />}
-      {servicesLabel && <Chip icon="sparkles" text={servicesLabel} />}
-      {selectedDay && <Chip icon="calendar" text={selectedDay} />}
-      {selectedTime && <Chip icon="time" text={selectedTime} />}
-    </View>
-  );
+  const MiniSummary = () => {
+    const dateStr = selectedDate ? selectedDate.toLocaleDateString('es-MX', { 
+      weekday: 'short', 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }) : null;
+    
+    return (
+      <View style={styles.miniSummary}>
+        {selectedBarber && <Chip icon="person" text={selectedBarber.name} />}
+        {servicesLabel && <Chip icon="sparkles" text={servicesLabel} />}
+        {dateStr && <Chip icon="calendar" text={dateStr} />}
+        {selectedTime && <Chip icon="time" text={selectedTime} />}
+      </View>
+    );
+  };
 
   const Chip = ({ icon, text }) => (
     <View style={styles.chip}>
@@ -170,39 +175,47 @@ export default function BookingScreen({ navigation }) {
     </View>
   );
 
-  const Receipt = ({ title, footerText, highlight }) => (
-    <View style={[styles.receipt, highlight && styles.receiptHighlight]}>
-      <Text style={styles.receiptTitle}>{title}</Text>
+  const Receipt = ({ title, footerText, highlight }) => {
+    const dateStr = selectedDate ? selectedDate.toLocaleDateString('es-MX', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    }) : null;
+    
+    return (
+      <View style={[styles.receipt, highlight && styles.receiptHighlight]}>
+        <Text style={styles.receiptTitle}>{title}</Text>
 
-      <View style={styles.receiptLine} />
+        <View style={styles.receiptLine} />
 
-      {selectedBarber && (
-        <View style={styles.receiptRow}>
-          <Text style={styles.receiptLabel}>Barbero</Text>
-          <Text style={styles.receiptValue}>{selectedBarber.name}</Text>
-        </View>
-      )}
+        {selectedBarber && (
+          <View style={styles.receiptRow}>
+            <Text style={styles.receiptLabel}>Barbero</Text>
+            <Text style={styles.receiptValue}>{selectedBarber.name}</Text>
+          </View>
+        )}
 
-      {servicesLabel && (
-        <View style={styles.receiptRow}>
-          <Text style={styles.receiptLabel}>Servicios</Text>
-          <Text style={styles.receiptValue}>{servicesLabel}</Text>
-        </View>
-      )}
+        {servicesLabel && (
+          <View style={styles.receiptRow}>
+            <Text style={styles.receiptLabel}>Servicios</Text>
+            <Text style={styles.receiptValue}>{servicesLabel}</Text>
+          </View>
+        )}
 
-      {selectedDay && (
-        <View style={styles.receiptRow}>
-          <Text style={styles.receiptLabel}>Día</Text>
-          <Text style={styles.receiptValue}>{selectedDay}</Text>
-        </View>
-      )}
+        {dateStr && (
+          <View style={styles.receiptRow}>
+            <Text style={styles.receiptLabel}>Fecha</Text>
+            <Text style={styles.receiptValue}>{dateStr}</Text>
+          </View>
+        )}
 
-      {selectedTime && (
-        <View style={styles.receiptRow}>
-          <Text style={styles.receiptLabel}>Hora</Text>
-          <Text style={styles.receiptValue}>{selectedTime}</Text>
-        </View>
-      )}
+        {selectedTime && (
+          <View style={styles.receiptRow}>
+            <Text style={styles.receiptLabel}>Hora</Text>
+            <Text style={styles.receiptValue}>{selectedTime}</Text>
+          </View>
+        )}
 
       <View style={styles.receiptLineDashed} />
 
@@ -285,24 +298,73 @@ export default function BookingScreen({ navigation }) {
     </>
   );
 
-  const StepDay = () => (
-    <>
-      <Header icon="calendar-outline" title="Selecciona el día" />
-      {DAYS.map((d) => (
+  const StepDay = () => {
+    const today = new Date();
+    const minDate = today;
+    const maxDate = new Date(today.getFullYear(), today.getMonth() + 3, today.getDate());
+
+    const onDateChange = (event, date) => {
+      setShowDatePicker(Platform.OS === 'ios');
+      if (date) {
+        setSelectedDate(date);
+        if (Platform.OS === 'android') {
+          setTimeSlots(buildTimeSlots());
+          goTo("time");
+        }
+      }
+    };
+
+    return (
+      <>
+        <Header icon="calendar-outline" title="Selecciona la fecha" />
+        
+        <View style={styles.dateContainer}>
+          <Text style={styles.dateLabel}>Fecha seleccionada:</Text>
+          <Text style={styles.dateValue}>
+            {selectedDate.toLocaleDateString('es-MX', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </Text>
+        </View>
+
         <TouchableOpacity
-          key={d}
           style={styles.cardOption}
-          onPress={() => {
-            setSelectedDay(d);
-            setTimeSlots(buildTimeSlots());
-            goTo("time");
-          }}
+          onPress={() => setShowDatePicker(true)}
         >
-          <Text style={styles.optionTitle}>{d}</Text>
+          <Text style={styles.optionTitle}>📅 Cambiar fecha</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.text} />
         </TouchableOpacity>
-      ))}
-    </>
-  );
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onDateChange}
+            minimumDate={minDate}
+            maximumDate={maxDate}
+            locale="es-MX"
+          />
+        )}
+
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity
+            style={styles.mainButton}
+            onPress={() => {
+              setShowDatePicker(false);
+              setTimeSlots(buildTimeSlots());
+              goTo("time");
+            }}
+          >
+            <Text style={styles.mainButtonText}>Continuar</Text>
+          </TouchableOpacity>
+        )}
+      </>
+    );
+  };
 
   const StepTime = () => (
     <>
@@ -509,6 +571,28 @@ const makeStyles = (theme) =>
       color: theme.colors.primary,
       fontSize: 16,
       fontWeight: "700",
+    },
+
+    dateContainer: {
+      backgroundColor: theme.colors.card,
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: "center",
+    },
+    dateLabel: {
+      fontSize: 14,
+      color: theme.colors.subtext,
+      marginBottom: 8,
+    },
+    dateValue: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: theme.colors.accent,
+      textAlign: "center",
+      textTransform: "capitalize",
     },
 
     backText: {
