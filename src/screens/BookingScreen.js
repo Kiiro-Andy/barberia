@@ -212,6 +212,34 @@ const fetchAvailability = async (dateParam = null) => {
     }
   };
 
+  // Función para verificar si el barbero tiene tiempo libre (vacaciones) en la fecha seleccionada
+  const checkBarberTimeOff = async (barberId, dateParam) => {
+    if (!barberId || !dateParam) return null;
+    
+    // Usar formato local YYYY-MM-DD en lugar de toISOString para evitar desfase de timezone
+    const year = dateParam.getFullYear();
+    const month = String(dateParam.getMonth() + 1).padStart(2, '0');
+    const day = String(dateParam.getDate()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day}`;
+    
+    console.log(`checkBarberTimeOff - barberId: ${barberId}, fecha: ${formattedDate}`);
+    
+    const { data, error } = await supabase
+      .from('time_off')
+      .select('id, reason, date')
+      .eq('barber_id', barberId)
+      .eq('date', formattedDate)
+      .single();
+    
+    console.log(`time_off query result:`, data, error);
+    
+    if (data && !error) {
+      return data; // Retorna el registro de time_off con la razón
+    }
+    
+    return null;
+  };
+
   const goTo = (next) => {
     setHistory((h) => [...h, step]);
     setStep(next);
@@ -250,8 +278,11 @@ const saveAppointment = async () => {
 
     setLoading(true);
     try {
-      // Formatear fecha como YYYY-MM-DD
-      const formattedDate = selectedDate.toISOString().split('T')[0];
+      // Usar formato local YYYY-MM-DD en lugar de toISOString para evitar desfase de timezone
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
       
       // Verificar que la hora no esté ocupada
       const { data: existingAppointments } = await supabase
@@ -520,6 +551,16 @@ const StepDay = () => {
       
       console.log(`Citas ocupadas para ${formattedDate}:`, occupiedTimes);
       
+      // Verificar si el barbero tiene tiempo libre (vacaciones) en esta fecha
+      if (selectedBarber?.id) {
+        const timeOff = await checkBarberTimeOff(selectedBarber.id, targetDate);
+        if (timeOff) {
+          console.log(`Barbero en tiempo libre: ${timeOff.reason}`);
+          setTimeSlots([]);
+          return { blocked: true, reason: timeOff.reason };
+        }
+      }
+      
       // Pasar la fecha directamente a fetchAvailability
       const avail = await fetchAvailability(targetDate);
       
@@ -570,6 +611,20 @@ const StepDay = () => {
         
         // Actualizar fecha Y llamar con la nueva fecha directamente
         setSelectedDate(selectedDateObj);
+        
+        // Verificar time off antes de proceder
+        if (selectedBarber?.id) {
+          const timeOff = await checkBarberTimeOff(selectedBarber.id, selectedDateObj);
+          if (timeOff) {
+            Alert.alert(
+              "Día no disponible",
+              `El barbero no estará disponible este día.\n\nRazón: ${timeOff.reason}`,
+              [{ text: "Entendido" }]
+            );
+            return;
+          }
+        }
+        
         await handleBuildTimeSlots(selectedDateObj);
         goTo("time");
       }
