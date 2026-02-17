@@ -29,11 +29,14 @@ export default function AppointmentsScreen({ navigation }) {
         return;
       }
 
+      const today = new Date().toISOString().split('T')[0];
+
       const { data, error } = await supabase
         .from('appointments')
         .select('*')
         .eq('user_id', user.id)
-        .order('fecha', { ascending: false });
+        .gte('fecha', today) // Solo mostrar citas de hoy en adelante
+        .order('fecha', { ascending: true });
 
       if (error) {
         console.error('Error al cargar citas:', error);

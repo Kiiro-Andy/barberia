@@ -20,12 +20,6 @@ export default function BookingScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
 
-  const BARBERS = [
-    { id: 1, name: "Carlos", specialty: "Fades y barba pro" },
-    { id: 2, name: "Luis", specialty: "Corte clásico a tijera" },
-    { id: 3, name: "Edweed", specialty: "Degradado HD 🤌" },
-  ];
-
   const BASE_TIMES = ["10:00", "11:00", "12:00", "16:00", "17:00", "18:30"];
 
   const [step, setStep] = useState("barber");
@@ -41,6 +35,7 @@ export default function BookingScreen({ navigation }) {
   const [services, setServices] = useState([]);
   const [occupiedTimes, setOccupiedTimes] = useState([]);
   const [availability, setAvailability] = useState(null);
+  const [barbers, setBarbers] = useState([]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -56,12 +51,32 @@ export default function BookingScreen({ navigation }) {
         .from('services')
         .select('id, nombre, precio, descripcion')
         .order('nombre');
-      
+
       if (data && !error) {
         setServices(data);
       }
     };
     fetchServices();
+
+    const fetchBarbers = async () => {
+      console.log('Fetching barbers...');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nombre, rol')
+        .eq('rol', 'barbero')
+        .order('nombre');
+
+      console.log('Barbers query result:', { data, error });
+
+      if (error) {
+        console.error('Error fetching barbers:', error);
+        Alert.alert('Error', 'No se pudieron cargar los barberos');
+      } else if (data) {
+        console.log('Setting barbers:', data);
+        setBarbers(data);
+      }
+    };
+    fetchBarbers();
   }, []);
 
 const fetchAvailability = async (dateParam = null) => {
@@ -115,19 +130,34 @@ const fetchAvailability = async (dateParam = null) => {
     }
   };
 
-  const generateTimeSlots = (startTime, endTime, occupied) => {
+  const generateTimeSlots = (startTime, endTime, occupied, selectedDateParam = null) => {
     if (!startTime || !endTime) return [];
     
     const slots = [];
     const [startHour] = startTime.split(':').map(Number);
     const [endHour] = endTime.split(':').map(Number);
     
+    // Verificar si la fecha seleccionada es hoy
+    const today = new Date();
+    const isToday = selectedDateParam && 
+      selectedDateParam.getDate() === today.getDate() &&
+      selectedDateParam.getMonth() === today.getMonth() &&
+      selectedDateParam.getFullYear() === today.getFullYear();
+    
+    // Obtener la hora actual si es hoy
+    const currentHour = isToday ? today.getHours() : null;
+    
+    console.log(`generateTimeSlots - es hoy: ${isToday}, hora actual: ${currentHour}`);
+    
     // Generar horarios de hora en hora (9:00, 10:00, 11:00, etc.)
     for (let hour = startHour; hour < endHour; hour++) {
+      // Si es hoy, bloquear horas que ya pasaron
+      const isPast = isToday && hour < currentHour;
+      
       const time = `${String(hour).padStart(2, '0')}:00`;
       slots.push({
         time: time,
-        available: !occupied.includes(time),
+        available: !occupied.includes(time) && !isPast,
       });
     }
     
@@ -160,7 +190,7 @@ const fetchAvailability = async (dateParam = null) => {
       return false;
     }
     
-    const slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes);
+    const slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes, selectedDate);
     console.log(`Slots generados:`, slots.length);
     setTimeSlots(slots);
     
@@ -205,7 +235,7 @@ const fetchAvailability = async (dateParam = null) => {
     setTimeSlots([]);
   };
 
-  const servicesLabel = selectedServices.map((s) => s.name).join(" + ") || null;
+  const servicesLabel = selectedServices.map((s) => s.nombre).join(" + ") || null;
 
 const saveAppointment = async () => {
     if (!userId) {
@@ -222,6 +252,24 @@ const saveAppointment = async () => {
     try {
       // Formatear fecha como YYYY-MM-DD
       const formattedDate = selectedDate.toISOString().split('T')[0];
+      
+      // Verificar que la hora no esté ocupada
+      const { data: existingAppointments } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('fecha', formattedDate)
+        .eq('hora_inicio', selectedTime)
+        .not('estado', 'eq', 'cancelada');
+      
+      if (existingAppointments && existingAppointments.length > 0) {
+        Alert.alert(
+          "Hora no disponible",
+          "Ya existe una cita agendada a esta hora. Por favor selecciona otra hora.",
+          [{ text: "Entendido" }]
+        );
+        setLoading(false);
+        return false;
+      }
       
       // Calcular hora_fin (una hora después de hora_inicio)
       const [hours, minutes] = selectedTime.split(':').map(Number);
@@ -240,7 +288,7 @@ const saveAppointment = async () => {
         ...(selectedBarber?.id && typeof selectedBarber.id === 'string' && selectedBarber.id.includes('-') 
           ? { barber_id: selectedBarber.id } 
           : {}),
-        barber_name: selectedBarber?.name
+        barber_name: selectedBarber?.nombre
       }));
 
       console.log('Insertando citas:', appointmentsToInsert);
@@ -296,7 +344,7 @@ const saveAppointment = async () => {
     
     return (
       <View style={styles.miniSummary}>
-        {selectedBarber && <Chip icon="person" text={selectedBarber.name} />}
+        {selectedBarber && <Chip icon="person" text={selectedBarber.nombre} />}
         {servicesLabel && <Chip icon="sparkles" text={servicesLabel} />}
         {dateStr && <Chip icon="calendar" text={dateStr} />}
         {selectedTime && <Chip icon="time" text={selectedTime} />}
@@ -332,7 +380,7 @@ const saveAppointment = async () => {
         {selectedBarber && (
           <View style={styles.receiptRow}>
             <Text style={styles.receiptLabel}>Barbero</Text>
-            <Text style={styles.receiptValue}>{selectedBarber.name}</Text>
+            <Text style={styles.receiptValue}>{selectedBarber.nombre}</Text>
           </View>
         )}
 
@@ -381,7 +429,7 @@ const saveAppointment = async () => {
   const StepBarber = () => (
     <>
       <Header icon="person-outline" title="Elige tu barbero" />
-      {BARBERS.map((b) => (
+      {barbers.map((b) => (
         <TouchableOpacity
           key={b.id}
           style={styles.cardOption}
@@ -391,8 +439,7 @@ const saveAppointment = async () => {
           }}
         >
           <View>
-            <Text style={styles.optionTitle}>{b.name}</Text>
-            <Text style={styles.optionSubtitle}>{b.specialty}</Text>
+            <Text style={styles.optionTitle}>{b.nombre}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} />
         </TouchableOpacity>
@@ -455,14 +502,23 @@ const StepDay = () => {
       const formattedDate = targetDate.toISOString().split('T')[0];
       console.log(`handleBuildTimeSlots - fecha: ${formattedDate}`);
       
-      // Consultar ocupados
+      // Consultar citas ocupadas para este día (cualquier estado excepto cancelado)
       const { data: appointmentsData } = await supabase
         .from('appointments')
         .select('hora_inicio')
-        .eq('fecha', formattedDate)
-        .eq('status', 'confirmed');
+        .eq('fecha', formattedDate);
       
-      const occupiedTimes = appointmentsData?.map(a => a.hora_inicio) || [];
+      // Normalizar horas ocupadas (quitar segundos si existen)
+      const occupiedTimes = (appointmentsData || [])
+        .filter(a => a.estado !== 'cancelada' && a.estado !== 'cancelled' && a.status !== 'cancelled')
+        .map(a => {
+          // Normalizar: "10:00:00" -> "10:00"
+          const hora = a.hora_inicio || '';
+          const parts = hora.split(':');
+          return `${parts[0]}:${parts[1]}`;
+        });
+      
+      console.log(`Citas ocupadas para ${formattedDate}:`, occupiedTimes);
       
       // Pasar la fecha directamente a fetchAvailability
       const avail = await fetchAvailability(targetDate);
@@ -472,8 +528,8 @@ const StepDay = () => {
         return false;
       }
       
-      const slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes);
-      console.log(`Slots generados: ${slots.length}, desde ${avail.hora_inicio} hasta ${avail.hora_fin}`);
+      const slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes, targetDate);
+      console.log(`Slots generados: ${slots.length}, disponibles: ${slots.filter(s => s.available).length}`);
       setTimeSlots(slots);
       return true;
     };
@@ -596,19 +652,47 @@ const StepTime = () => (
         </View>
       ) : (
         <View style={styles.timeGrid}>
-          {timeSlots.map((t) => (
-            <TouchableOpacity
-              key={t.time}
-              disabled={!t.available}
-              style={[styles.timeChip, !t.available && { opacity: 0.4 }]}
-              onPress={() => {
-                setSelectedTime(t.time);
-                goTo("confirm");
-              }}
-            >
-              <Text style={styles.timeText}>{t.time}</Text>
-            </TouchableOpacity>
-          ))}
+          {timeSlots.map((t) => {
+            if (!t.available) {
+              // Usar View en lugar de TouchableOpacity para horas ocupadas
+              return (
+                <View
+                  key={t.time}
+                  style={[
+                    styles.timeChip,
+                    styles.timeChipDisabled
+                  ]}
+                >
+                  <Text style={[
+                    styles.timeText,
+                    styles.timeTextDisabled
+                  ]}>
+                    {t.time}
+                  </Text>
+                  <Ionicons 
+                    name="lock-closed" 
+                    size={14} 
+                    color={theme.colors.subtext} 
+                    style={styles.lockIcon}
+                  />
+                </View>
+              );
+            }
+            
+            // SoloTouchableOpacity para horas disponibles
+            return (
+              <TouchableOpacity
+                key={t.time}
+                style={styles.timeChip}
+                onPress={() => {
+                  setSelectedTime(t.time);
+                  goTo("confirm");
+                }}
+              >
+                <Text style={styles.timeText}>{t.time}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
     </>
@@ -785,6 +869,17 @@ timeText: {
       fontSize: 16, 
       fontWeight: "600", 
       color: theme.colors.text,
+    },
+    timeChipDisabled: {
+      backgroundColor: '#2a2a2a',
+      borderColor: '#444',
+      borderWidth: 1,
+    },
+    timeTextDisabled: {
+      color: '#666',
+    },
+    lockIcon: {
+      marginTop: 4,
     },
     noSlotsContainer: {
       alignItems: 'center',
