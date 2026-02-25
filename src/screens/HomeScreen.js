@@ -6,20 +6,89 @@ import {
   StyleSheet,
   Animated,
   ScrollView,
+  FlatList,
+  Dimensions,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 import { supabase } from "../utils/supabase";
 
+const { width } = Dimensions.get("window");
+const CAROUSEL_ITEM_WIDTH = width - 40;
+const CAROUSEL_ITEM_HEIGHT = 200;
+
 export default function HomeScreen({ navigation }) {
   const { theme, isDark } = useTheme();
   const styles = makeStyles(theme, isDark);
+  const flatListRef = useRef(null);
 
   const servicesAnim = useRef(new Animated.Value(0)).current;
   const buttonsAnim = useRef(new Animated.Value(0)).current;
 
   const [expandedService, setExpandedService] = useState(null);
   const [services, setServices] = useState([]);
+  const [carouselImages, setCarouselImages] = useState([]);
+  const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
+
+  useEffect(() => {
+    // Fetch images from Supabase Storage
+    const fetchCarouselImages = async () => {
+      try {
+        const { data, error } = await supabase
+          .storage
+          .from('Fotos')
+          .list('carrusel_cortes', {
+            limit: 10,
+            offset: 0,
+            sortBy: { column: 'name', order: 'asc' },
+          });
+
+        console.log('Carousel data:', data);
+        console.log('Carousel error:', error);
+
+        if (error) {
+          console.error('Error fetching carousel images:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          // Generate public URLs for each image
+          const imagesWithUrls = data.map((file) => {
+            const { data: urlData } = supabase
+              .storage
+              .from('Fotos')
+              .getPublicUrl(`carrusel_cortes/${file.name}`);
+            console.log('Image URL:', urlData.publicUrl);
+            return {
+              name: file.name,
+              url: urlData.publicUrl,
+            };
+          });
+          setCarouselImages(imagesWithUrls);
+        } else {
+          console.log('No images found in carrusel_cortes folder');
+        }
+      } catch (error) {
+        console.error('Error in fetchCarouselImages:', error);
+      }
+    };
+
+    fetchCarouselImages();
+  }, []);
+
+  // Auto-scroll carousel
+  useEffect(() => {
+    if (carouselImages.length === 0 || !flatListRef.current) return;
+
+    const interval = setInterval(() => {
+      const nextIndex = currentCarouselIndex === carouselImages.length - 1 ? 0 : currentCarouselIndex + 1;
+      flatListRef.current.scrollToIndex({ index: nextIndex, animated: true });
+      setCurrentCarouselIndex(nextIndex);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [carouselImages, currentCarouselIndex]);
 
   useEffect(() => {
     Animated.stagger(150, [
@@ -125,6 +194,55 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         </Animated.View>
+
+        {/* CARRUSEL DE CORTES */}
+        {carouselImages.length > 0 && (
+          <View style={styles.carouselContainer}>
+            <FlatList
+              ref={flatListRef}
+              data={carouselImages}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => item.name}
+              onScroll={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / CAROUSEL_ITEM_WIDTH);
+                setCurrentCarouselIndex(index);
+              }}
+              scrollEventThrottle={16}
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / CAROUSEL_ITEM_WIDTH);
+                setCurrentCarouselIndex(index);
+              }}
+              getItemLayout={(data, index) => ({
+                length: CAROUSEL_ITEM_WIDTH + 10,
+                offset: (CAROUSEL_ITEM_WIDTH + 10) * index,
+                index,
+              })}
+              renderItem={({ item }) => (
+                <View style={styles.carouselItem}>
+                  <Image
+                    source={{ uri: item.url }}
+                    style={styles.carouselImage}
+                    resizeMode="cover"
+                  />
+                </View>
+              )}
+            />
+            {/* Indicadores */}
+            <View style={styles.carouselIndicators}>
+              {carouselImages.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.indicator,
+                    currentCarouselIndex === index && styles.indicatorActive,
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* SERVICIOS */}
         <Animated.Text
@@ -378,5 +496,39 @@ const makeStyles = (theme, isDark) =>
       fontWeight: "500",
       color: theme.colors.text,
       opacity: 0.8,
+    },
+
+    // Estilos del carrusel
+    carouselContainer: {
+      marginBottom: 25,
+    },
+    carouselItem: {
+      width: CAROUSEL_ITEM_WIDTH,
+      height: CAROUSEL_ITEM_HEIGHT,
+      marginRight: 10,
+      borderRadius: 16,
+      overflow: "hidden",
+    },
+    carouselImage: {
+      width: "100%",
+      height: "100%",
+    },
+    carouselIndicators: {
+      flexDirection: "row",
+      justifyContent: "center",
+      marginTop: 12,
+      gap: 8,
+    },
+    indicator: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.info,
+      opacity: 0.4,
+    },
+    indicatorActive: {
+      backgroundColor: theme.colors.accent,
+      opacity: 1,
+      width: 24,
     },
   });
