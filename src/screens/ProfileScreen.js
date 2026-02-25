@@ -9,7 +9,10 @@ import {
 	ActivityIndicator,
 	TextInput,
 	Alert,
+	Modal,
+	Pressable,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 import { supabase } from "../utils/supabase";
@@ -22,6 +25,11 @@ export default function ProfileScreen({ navigation }) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [editedName, setEditedName] = useState("");
 	const [saving, setSaving] = useState(false);
+	
+	// Estados para la foto de perfil
+	const [profileImage, setProfileImage] = useState(null);
+	const [uploadingImage, setUploadingImage] = useState(false);
+	const [showImagePicker, setShowImagePicker] = useState(false);
 
 	useEffect(() => {
 		fetchUserData();
@@ -40,8 +48,10 @@ export default function ProfileScreen({ navigation }) {
 				setUserData({
 					nombre: user.user_metadata?.nombre || user.user_metadata?.display_name || 'Usuario',
 					email: user.email,
+					avatar_url: user.user_metadata?.avatar_url || null,
 				});
 				setEditedName(user.user_metadata?.nombre || user.user_metadata?.display_name || 'Usuario');
+				setProfileImage(user.user_metadata?.avatar_url || null);
 			}
 		} catch (error) {
 			console.error('Error:', error);
@@ -94,6 +104,104 @@ export default function ProfileScreen({ navigation }) {
 		setIsEditing(false);
 	};
 
+	// Función para tomar o seleccionar foto
+	const pickImage = async (useCamera) => {
+		setShowImagePicker(false);
+		
+		const permissionResult = useCamera 
+			? await ImagePicker.requestCameraPermissionsAsync()
+			: await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+		if (!permissionResult.granted) {
+			Alert.alert("Permiso requerido", "Necesitas otorgar permiso para acceder a tus fotos.");
+			return;
+		}
+
+		const result = useCamera
+			? await ImagePicker.launchCameraAsync({
+				allowsEditing: true,
+				aspect: [1, 1],
+				quality: 1,
+			})
+			: await ImagePicker.launchImageLibraryAsync({
+				allowsEditing: true,
+				aspect: [1, 1],
+				quality: 1,
+			});
+
+		if (!result.canceled && result.assets[0]) {
+			await uploadProfileImage(result.assets[0].uri);
+		}
+	};
+
+	// Función para subir imagen a Supabase
+	const uploadProfileImage = async (uri) => {
+		setUploadingImage(true);
+		try {
+			const { data: { user } } = await supabase.auth.getUser();
+			
+			if (!user) {
+				Alert.alert("Error", "No se encontró el usuario");
+				return;
+			}
+
+			// Nombre único para el archivo
+			const fileName = `${user.id}_${Date.now()}.jpg`;
+			
+			// Crear FormData para subir el archivo
+			const formData = new FormData();
+			formData.append('file', {
+				uri: uri,
+				type: 'image/jpeg',
+				name: fileName,
+			});
+			
+			// Subir a Supabase Storage usando FormData
+			const { data, error } = await supabase.storage
+				.from('Usuarios')
+				.upload(`perfiles/${fileName}`, formData, {
+					cacheControl: '3600',
+					upsert: false,
+					contentType: 'multipart/form-data',
+				});
+
+			if (error) {
+				console.error('Error uploading:', error);
+				Alert.alert("Error", "No se pudo subir la imagen: " + error.message);
+				return;
+			}
+
+			// Construir la URL manualmente
+			const projectUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';
+			const publicUrl = `${projectUrl}/storage/v1/object/public/Usuarios/perfiles/${fileName}`;
+			
+			console.log('Public URL:', publicUrl);
+			
+			// También mostrar localmente la imagen
+			setProfileImage(uri);
+
+			// Actualizar user_metadata con la URL de la imagen
+			const { error: updateError } = await supabase.auth.updateUser({
+				data: {
+					avatar_url: publicUrl,
+				}
+			});
+
+			if (updateError) {
+				console.error('Error updating user:', updateError);
+				Alert.alert("Error", "No se pudo guardar la foto de perfil");
+			} else {
+				setUserData(prev => ({ ...prev, avatar_url: publicUrl }));
+				Alert.alert("Éxito", "Foto de perfil actualizada");
+			}
+		} catch (error) {
+			console.error('Error:', error);
+			Alert.alert("Error", "Ocurrió un error al procesar la imagen");
+		} finally {
+			setUploadingImage(false);
+		}
+	};
+
 	return (
 		<View style={styles.container}>
 			<View style={styles.switchRow}>
@@ -115,12 +223,27 @@ export default function ProfileScreen({ navigation }) {
 				<ActivityIndicator size="large" color={theme.colors.accent} />
 			) : (
 				<>
-					<Image
-						source={
-							isDark ? require("../../assets/icon-light.png") : require("../../assets/icon-dark.png")
-						}
-						style={styles.avatar}
-					/>
+					<TouchableOpacity 
+						onPress={() => setShowImagePicker(true)}
+						style={styles.avatarContainer}
+					>
+						<Image
+							source={
+								profileImage 
+									? { uri: profileImage }
+									: (isDark ? require("../../assets/icon-light.png") : require("../../assets/icon-dark.png"))
+							}
+							style={styles.avatar}
+						/>
+						<View style={styles.editAvatarButton}>
+							<Ionicons name="camera" size={16} color="#fff" />
+						</View>
+						{uploadingImage && (
+							<View style={styles.uploadingOverlay}>
+								<ActivityIndicator size="small" color="#fff" />
+							</View>
+						)}
+					</TouchableOpacity>
 
 					{isEditing ? (
 						<View style={styles.editContainer}>
@@ -188,6 +311,46 @@ export default function ProfileScreen({ navigation }) {
 					>
 						<Text style={styles.backText}>← Volver al inicio</Text>
 					</TouchableOpacity>
+
+					{/* Modal para seleccionar imagen */}
+					<Modal
+						visible={showImagePicker}
+						transparent
+						animationType="slide"
+						onRequestClose={() => setShowImagePicker(false)}
+					>
+						<Pressable 
+							style={styles.modalOverlay}
+							onPress={() => setShowImagePicker(false)}
+						>
+							<View style={styles.modalContent}>
+								<Text style={styles.modalTitle}>Cambiar foto de perfil</Text>
+								
+								<TouchableOpacity 
+									style={styles.modalOption}
+									onPress={() => pickImage(true)}
+								>
+									<Ionicons name="camera" size={24} color={theme.colors.accent} />
+									<Text style={styles.modalOptionText}>Tomar foto</Text>
+								</TouchableOpacity>
+
+								<TouchableOpacity 
+									style={styles.modalOption}
+									onPress={() => pickImage(false)}
+								>
+									<Ionicons name="images" size={24} color={theme.colors.accent} />
+									<Text style={styles.modalOptionText}>Elegir de galería</Text>
+								</TouchableOpacity>
+
+								<TouchableOpacity 
+									style={[styles.modalOption, styles.cancelOption]}
+									onPress={() => setShowImagePicker(false)}
+								>
+									<Text style={styles.cancelText}>Cancelar</Text>
+								</TouchableOpacity>
+							</View>
+						</Pressable>
+					</Modal>
 				</>
 			)}
 		</View>
@@ -279,5 +442,68 @@ const makeStyles = (theme) =>
 		},
 		saveButton: {
 			width: "45%",
+		},
+		// Estilos para foto de perfil
+		avatarContainer: {
+			position: "relative",
+			marginBottom: 15,
+		},
+		editAvatarButton: {
+			position: "absolute",
+			bottom: 0,
+			right: 0,
+			backgroundColor: theme.colors.accent,
+			borderRadius: 12,
+			padding: 6,
+		},
+		uploadingOverlay: {
+			position: "absolute",
+			top: 0,
+			left: 0,
+			right: 0,
+			bottom: 0,
+			backgroundColor: "rgba(0,0,0,0.5)",
+			borderRadius: 50,
+			justifyContent: "center",
+			alignItems: "center",
+		},
+		// Estilos del modal
+		modalOverlay: {
+			flex: 1,
+			backgroundColor: "rgba(0,0,0,0.5)",
+			justifyContent: "flex-end",
+		},
+		modalContent: {
+			backgroundColor: theme.colors.surface,
+			borderTopLeftRadius: 20,
+			borderTopRightRadius: 20,
+			padding: 20,
+			paddingBottom: 40,
+		},
+		modalTitle: {
+			fontSize: 18,
+			fontWeight: "bold",
+			color: theme.colors.text,
+			textAlign: "center",
+			marginBottom: 20,
+		},
+		modalOption: {
+			flexDirection: "row",
+			alignItems: "center",
+			padding: 15,
+			borderRadius: 10,
+			gap: 15,
+		},
+		modalOptionText: {
+			fontSize: 16,
+			color: theme.colors.text,
+		},
+		cancelOption: {
+			marginTop: 10,
+			justifyContent: "center",
+		},
+		cancelText: {
+			fontSize: 16,
+			color: "#ff6b6b",
 		},
 	});
