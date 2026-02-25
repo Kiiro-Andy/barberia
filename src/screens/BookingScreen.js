@@ -134,8 +134,8 @@ const fetchAvailability = async (dateParam = null) => {
     if (!startTime || !endTime) return [];
     
     const slots = [];
-    const [startHour] = startTime.split(':').map(Number);
-    const [endHour] = endTime.split(':').map(Number);
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
     
     // Verificar si la fecha seleccionada es hoy
     const today = new Date();
@@ -146,19 +146,37 @@ const fetchAvailability = async (dateParam = null) => {
     
     // Obtener la hora actual si es hoy
     const currentHour = isToday ? today.getHours() : null;
+    const currentMinute = isToday ? today.getMinutes() : null;
     
-    console.log(`generateTimeSlots - es hoy: ${isToday}, hora actual: ${currentHour}`);
+    console.log(`generateTimeSlots - es hoy: ${isToday}, hora actual: ${currentHour}:${currentMinute}`);
     
-    // Generar horarios de hora en hora (9:00, 10:00, 11:00, etc.)
-    for (let hour = startHour; hour < endHour; hour++) {
+    // Generar horarios cada 30 minutos (9:00, 9:30, 10:00, 10:30, etc.)
+    let hour = startHour;
+    let minute = startMinute;
+    
+    while (hour < endHour || (hour === endHour && minute < endMinute)) {
       // Si es hoy, bloquear horas que ya pasaron
-      const isPast = isToday && hour < currentHour;
+      let isPast = false;
+      if (isToday) {
+        if (hour < currentHour) {
+          isPast = true;
+        } else if (hour === currentHour && minute < currentMinute) {
+          isPast = true;
+        }
+      }
       
-      const time = `${String(hour).padStart(2, '0')}:00`;
+      const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
       slots.push({
         time: time,
         available: !occupied.includes(time) && !isPast,
       });
+      
+      // Avanzar 30 minutos
+      minute += 30;
+      if (minute >= 60) {
+        minute = 0;
+        hour += 1;
+      }
     }
     
     return slots;
@@ -682,6 +700,30 @@ const StepDay = () => {
               
               setShowDatePicker(false);
               await handleBuildTimeSlots();
+              goTo("time");
+            }}
+          >
+            <Text style={styles.mainButtonText}>Continuar</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Botón Continuar siempre visible para Android y para cuando no está el picker */}
+        {Platform.OS !== 'ios' && (
+          <TouchableOpacity
+            style={styles.mainButton}
+            onPress={async () => {
+              const dayOfWeek = selectedDate.getDay();
+              if (dayOfWeek === 0) {
+                Alert.alert(
+                  "Día no disponible",
+                  "Los domingos no laboramos. Por favor selecciona un día de Lunes a Sábado.",
+                  [{ text: "Entendido" }]
+                );
+                return;
+              }
+              
+              setShowDatePicker(false);
+              await handleBuildTimeSlots(selectedDate);
               goTo("time");
             }}
           >
