@@ -242,14 +242,22 @@ const fetchAvailability = async (dateParam = null) => {
     const formattedDate = selectedDate.toISOString().split('T')[0];
     console.log(`buildTimeSlots llamado - fecha: ${formattedDate}, onlyValidate: ${onlyValidate}`);
     
-    // Consultar ocupados
-    const { data: appointmentsData } = await supabase
+    // Consultar ocupados SOLO para el barbero seleccionado
+    // Esto permite que otro barbero atienda a la misma hora
+    let query = supabase
       .from('appointments')
       .select('hora_inicio')
       .eq('fecha', formattedDate)
       .eq('status', 'confirmed');
     
-    console.log(`Citas ocupadas para ${formattedDate}:`, appointmentsData);
+    // Si hay un barbero seleccionado, filtrar por su ID
+    if (selectedBarber?.id) {
+      query = query.eq('barber_id', selectedBarber.id);
+    }
+    
+    const { data: appointmentsData } = await query;
+    
+    console.log(`Citas ocupadas para ${formattedDate} (barbero: ${selectedBarber?.id || 'ninguno'}):`, appointmentsData);
     
     const occupiedTimes = appointmentsData?.map(a => a.hora_inicio) || [];
     
@@ -368,18 +376,24 @@ const saveAppointment = async () => {
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
       
-      // Verificar que la hora no esté ocupada
-      const { data: existingAppointments } = await supabase
+// Verificar que la hora no esté ocupada PARA EL MISMO BARBERO
+      let query = supabase
         .from('appointments')
         .select('id')
         .eq('fecha', formattedDate)
-        .eq('hora_inicio', selectedTime)
-        .not('estado', 'eq', 'cancelada');
+        .eq('hora_inicio', selectedTime);
+      
+      // Filtrar por barbero si está seleccionado
+      if (selectedBarber?.id) {
+        query = query.eq('barber_id', selectedBarber.id);
+      }
+      
+      const { data: existingAppointments } = await query;
       
       if (existingAppointments && existingAppointments.length > 0) {
         Alert.alert(
           "Hora no disponible",
-          "Ya existe una cita agendada a esta hora. Por favor selecciona otra hora.",
+          "Ya tienes una cita agendada a esta hora con este barbero. Por favor selecciona otra hora.",
           [{ text: "Entendido" }]
         );
         setLoading(false);
@@ -614,18 +628,67 @@ const StepDay = () => {
 // Función para construir slots con la fecha pasada como parámetro
     const handleBuildTimeSlots = async (dateParam) => {
       const targetDate = dateParam || selectedDate;
-      const formattedDate = targetDate.toISOString().split('T')[0];
-      console.log(`handleBuildTimeSlots - fecha: ${formattedDate}`);
+      
+      // Usar formato local para evitar problemas de timezone
+      const year = targetDate.getFullYear();
+      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const day = String(targetDate.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+      
+      console.log(`handleBuildTimeSlots - fecha original: ${targetDate.toDateString()}, formateada: ${formattedDate}`);
+      console.log(`Barbero seleccionado:`, selectedBarber);
+      
+      // Consultar todas las citas del día primero (sin filtro) para debug
+      const { data: allAppointments } = await supabase
+        .from('appointments')
+        .select('id, fecha, hora_inicio, barber_id, barber_name, estado')
+        .eq('fecha', formattedDate);
+      
+      console.log(`TODAS las citas para ${formattedDate}:`, allAppointments);
       
       // Consultar citas ocupadas para este día (cualquier estado excepto cancelado)
-      const { data: appointmentsData } = await supabase
-        .from('appointments')
-        .select('hora_inicio')
-        .eq('fecha', formattedDate);
+      // FILTRAR POR BARBERO para permitir que otro barbero atienda a la misma hora
+      let appointmentsData = [];
+      
+      if (selectedBarber?.id && selectedBarber?.nombre) {
+        // Buscar por barber_id O barber_name
+        const { data: byId } = await supabase
+          .from('appointments')
+          .select('hora_inicio, barber_id, barber_name, estado')
+          .eq('fecha', formattedDate)
+          .eq('barber_id', selectedBarber.id);
+        
+        const { data: byName } = await supabase
+          .from('appointments')
+          .select('hora_inicio, barber_id, barber_name, estado')
+          .eq('fecha', formattedDate)
+          .eq('barber_name', selectedBarber.nombre);
+        
+        // Combinar resultados
+        const combined = [...(byId || []), ...(byName || [])];
+        // Eliminar duplicados
+        appointmentsData = combined.filter((v,i,a)=>a.findIndex(t=>(t.hora_inicio===v.hora_inicio))===i);
+        
+        console.log(`Citas por ID (${selectedBarber.id}):`, byId);
+        console.log(`Citas por nombre (${selectedBarber.nombre}):`, byName);
+      } else {
+        // Si no hay barbero seleccionado, traer todas las citas
+        const { data } = await supabase
+          .from('appointments')
+          .select('hora_inicio, barber_id, barber_name, estado')
+          .eq('fecha', formattedDate);
+        appointmentsData = data || [];
+      }
+      
+      console.log(`Citas ocupadas para ${formattedDate} (barbero: ${selectedBarber?.nombre || 'ninguno'}):`, appointmentsData);
       
       // Normalizar horas ocupadas (quitar segundos si existen)
       const occupiedTimes = (appointmentsData || [])
-        .filter(a => a.estado !== 'cancelada' && a.estado !== 'cancelled' && a.status !== 'cancelled')
+        .filter(a => {
+          // Verificar que no esté cancelada
+          const estado = a.estado || '';
+          return estado.toLowerCase() !== 'cancelada' && estado.toLowerCase() !== 'cancelled';
+        })
         .map(a => {
           // Normalizar: "10:00:00" -> "10:00"
           const hora = a.hora_inicio || '';
@@ -633,7 +696,7 @@ const StepDay = () => {
           return `${parts[0]}:${parts[1]}`;
         });
       
-      console.log(`Citas ocupadas para ${formattedDate}:`, occupiedTimes);
+      console.log(`Horas ocupadas:`, occupiedTimes);
       
       // Verificar si el barbero tiene tiempo libre (vacaciones) en esta fecha
       if (selectedBarber?.id) {
