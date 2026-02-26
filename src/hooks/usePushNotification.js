@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../utils/supabase';
 
 export const usePushNotifications = (userId) => {
   const [expoPushToken, setExpoPushToken] = useState('');
