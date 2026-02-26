@@ -28,7 +28,14 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon-dark.png",
+          "color": "#C0A060"
+        }
+      ]
     ],
     "extra": {
       "eas": {
