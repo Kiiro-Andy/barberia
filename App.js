@@ -14,6 +14,7 @@ function ThemedApp() {
 }
 
 export default function App() {
+	  usePushNotifications();
 	return (
 		<ThemeProvider>
 			<ThemedApp />
