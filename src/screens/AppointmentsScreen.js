@@ -20,7 +20,7 @@ export default function AppointmentsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAppointments = async () => {
+const fetchAppointments = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -31,20 +31,63 @@ export default function AppointmentsScreen({ navigation }) {
 
       const today = new Date().toISOString().split('T')[0];
 
-      const { data, error } = await supabase
+      // 1. First get all appointments
+      const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
         .select('*')
         .eq('user_id', user.id)
         .gte('fecha', today) // Solo mostrar citas de hoy en adelante
         .order('fecha', { ascending: true });
 
-      if (error) {
-        console.error('Error al cargar citas:', error);
-      } else {
-        setAppointments(data || []);
+      if (appointmentsError) {
+        console.error('Error al cargar citas:', appointmentsError);
+        setAppointments([]);
+        return;
       }
+
+      if (!appointmentsData || appointmentsData.length === 0) {
+        setAppointments([]);
+        return;
+      }
+
+      // 2. For each appointment, get the services from the junction table
+      const appointmentsWithServices = await Promise.all(
+        appointmentsData.map(async (appointment) => {
+          // Get services for this appointment from the junction table
+          const { data: servicesData, error: servicesError } = await supabase
+            .from('appointment_services')
+            .select(`
+              service_id,
+              services (
+                id,
+                nombre,
+                precio
+              )
+            `)
+            .eq('appointment_id', appointment.id);
+
+          if (servicesError) {
+            console.error('Error al cargar servicios:', servicesError);
+            return { ...appointment, servicesList: [] };
+          }
+
+          // Extract service names
+          const servicesList = servicesData
+            ?.map(item => item.services?.nombre)
+            .filter(Boolean) || [];
+
+          return {
+            ...appointment,
+            servicesList,
+            services: servicesList.join(' + ') // Keep for backward compatibility
+          };
+        })
+      );
+
+      setAppointments(appointmentsWithServices);
     } catch (error) {
       console.error('Error:', error);
+      setAppointments([]);
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -88,6 +88,7 @@ const fetchAvailability = async (dateParam = null) => {
     const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     
     console.log(`fetchAvailability - fecha: ${targetDate.toDateString()}, día: ${dayOfWeek} (${dayNames[dayOfWeek]})`);
+    console.log(`fetchAvailability - barbero:`, selectedBarber);
     
     // Si es domingo (0), no hay atención
     if (dayOfWeek === 0) {
@@ -95,14 +96,20 @@ const fetchAvailability = async (dateParam = null) => {
       return null;
     }
     
-    // Consultar la tabla availability para este día de la semana
-    const { data, error } = await supabase
+    // Consultar la tabla availability para este día Y este barbero
+    let query = supabase
       .from('availability')
-      .select('dia_semana, hora_inicio, hora_fin, horas_seleccionadas')
-      .eq('dia_semana', dayOfWeek)
-      .single();
+      .select('dia_semana, hora_inicio, hora_fin, horas_seleccionadas, barber_id')
+      .eq('dia_semana', dayOfWeek);
     
-    console.log(`Consultando availability con dia_semana=${dayOfWeek}:`, data, error);
+    // Si hay un barbero seleccionado, filtrar por su ID
+    if (selectedBarber?.id) {
+      query = query.eq('barber_id', selectedBarber.id);
+    }
+    
+    const { data, error } = await query.single();
+    
+    console.log(`Consultando availability con dia_semana=${dayOfWeek} y barber_id=${selectedBarber?.id}:`, data, error);
     
     if (data && !error) {
       // Si hay horas_seleccionadas en JSON, usarlas
@@ -119,8 +126,8 @@ const fetchAvailability = async (dateParam = null) => {
       setAvailability(data);
       return data;
     } else {
-      console.log(`No se encontró disponibilidad para día ${dayOfWeek}, usando horarios por defecto`);
-      // Si no hay disponibilidad configurada, usar horarios por defecto
+      console.log(`No se encontró disponibilidad específica para el barbero, usando horarios por defecto`);
+      // Si no hay disponibilidad configurada para el barbero, usar horarios por defecto
       const defaultHours = {
         1: { dia_semana: 1, hora_inicio: '09:00', hora_fin: '19:00' }, // Lunes
         2: { dia_semana: 2, hora_inicio: '09:00', hora_fin: '19:00' }, // Martes
@@ -405,10 +412,9 @@ const saveAppointment = async () => {
       const endHour = hours + 1;
       const horaFin = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
       
-      // Insertar cada servicio como una cita separada
-      const appointmentsToInsert = selectedServices.map(service => ({
+      // Crear UNA sola cita (sin service_id ya que se usa la tabla de relación)
+      const appointmentData = {
         user_id: userId,
-        service_id: service.id,
         fecha: formattedDate,
         hora_inicio: selectedTime,
         hora_fin: horaFin,
@@ -418,22 +424,47 @@ const saveAppointment = async () => {
           ? { barber_id: selectedBarber.id } 
           : {}),
         barber_name: selectedBarber?.nombre
-      }));
+      };
 
-      console.log('Insertando citas:', appointmentsToInsert);
+      console.log('Insertando cita:', appointmentData);
 
-      const { data, error } = await supabase
+      // 1. Insertar la cita
+      const { data: appointmentResult, error: appointmentError } = await supabase
         .from('appointments')
-        .insert(appointmentsToInsert)
+        .insert(appointmentData)
         .select();
 
-      if (error) {
-        console.error('Error al guardar la cita:', error);
-        Alert.alert("Error", `No se pudo guardar la cita: ${error.message}`);
+      if (appointmentError) {
+        console.error('Error al guardar la cita:', appointmentError);
+        Alert.alert("Error", `No se pudo guardar la cita: ${appointmentError.message}`);
         return false;
       }
 
-      console.log('Citas guardadas exitosamente:', data);
+      const appointmentId = appointmentResult[0].id;
+      console.log('Cita guardada exitosamente:', appointmentResult);
+
+      // 2. Insertar los servicios en la tabla de relación
+      const servicesToInsert = selectedServices.map(service => ({
+        appointment_id: appointmentId,
+        service_id: service.id
+      }));
+
+      console.log('Insertando servicios:', servicesToInsert);
+
+      const { data: servicesResult, error: servicesError } = await supabase
+        .from('appointment_services')
+        .insert(servicesToInsert)
+        .select();
+
+      if (servicesError) {
+        console.error('Error al guardar los servicios:', servicesError);
+        // Si falla al guardar servicios, eliminar la cita creada
+        await supabase.from('appointments').delete().eq('id', appointmentId);
+        Alert.alert("Error", `No se pudieron guardar los servicios: ${servicesError.message}`);
+        return false;
+      }
+
+      console.log('Servicios guardados exitosamente:', servicesResult);
       return true;
     } catch (error) {
       console.error('Error:', error);
