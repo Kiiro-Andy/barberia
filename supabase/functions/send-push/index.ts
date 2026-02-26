@@ -9,10 +9,9 @@ serve(async (req) => {
     console.log("Payload recibido:", payload);
 
     const isWebhook = !!payload.record;
-    const user_id = isWebhook ? payload.record.cliente_id : payload.user_id;
+    const user_id = isWebhook ? payload.record.user_id : payload.user_id; 
     const title = payload.title || (isWebhook ? "Actualización de Cita" : "Notificación");
-    const body = payload.body || (isWebhook ? `Tu cita ahora está: ${payload.record.status}` : "Tienes un nuevo mensaje");
-
+    const body = payload.body || (isWebhook ? `Tu cita ahora está: ${payload.record.estado}` : "Tienes un nuevo mensaje");
     // 3. CONFIGURAR CLIENTE SUPABASE
     // Asegúrate de que estos nombres coincidan con los que pusiste en 'Secrets' (SB_URL y SB_SERVICE_ROLE_KEY)
     const supabaseUrl = Deno.env.get('SB_URL') ?? ''; 
