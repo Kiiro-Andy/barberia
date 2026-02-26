@@ -15,6 +15,7 @@ import LoginScreen from "../screens/LoginScreen";
 import HomeScreen from "../screens/HomeScreen";
 import BookingScreen from "../screens/BookingScreen";
 import AppointmentsScreen from "../screens/AppointmentsScreen";
+import HistoryScreen from "../screens/HistoryScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 
@@ -108,6 +109,15 @@ const CustomHeader = ({ title, navigation, canGoBack }) => (
           options={({ navigation }) => ({
             header: () => (
               <CustomHeader title="Mis Citas" navigation={navigation} canGoBack/>
+            ),
+          })}
+        />
+        <Stack.Screen
+          name="History"
+          component={HistoryScreen}
+          options={({ navigation }) => ({
+            header: () => (
+              <CustomHeader title="Historial" navigation={navigation} canGoBack/>
             ),
           })}
         />

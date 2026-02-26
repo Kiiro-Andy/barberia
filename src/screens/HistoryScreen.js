@@ -7,21 +7,20 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 import { supabase } from "../utils/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 
-export default function AppointmentsScreen({ navigation }) {
+export default function HistoryScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-const fetchAppointments = async () => {
+  const fetchAppointments = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -32,16 +31,16 @@ const fetchAppointments = async () => {
 
       const today = new Date().toISOString().split('T')[0];
 
-      // 1. First get all upcoming/pending appointments
+      // Get all PAST appointments (history)
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
         .select('*')
         .eq('user_id', user.id)
-        .gte('fecha', today) // Solo mostrar citas de hoy en adelante
-        .order('fecha', { ascending: true });
+        .lt('fecha', today) // Only show past appointments
+        .order('fecha', { ascending: false }); // Most recent first
 
       if (appointmentsError) {
-        console.error('Error al cargar citas:', appointmentsError);
+        console.error('Error al cargar historial:', appointmentsError);
         setAppointments([]);
         return;
       }
@@ -51,10 +50,9 @@ const fetchAppointments = async () => {
         return;
       }
 
-      // 2. For each appointment, get the services from the junction table
+      // For each appointment, get the services from the junction table
       const appointmentsWithServices = await Promise.all(
         appointmentsData.map(async (appointment) => {
-          // Get services for this appointment from the junction table
           const { data: servicesData, error: servicesError } = await supabase
             .from('appointment_services')
             .select(`
@@ -72,7 +70,6 @@ const fetchAppointments = async () => {
             return { ...appointment, servicesList: [] };
           }
 
-          // Extract service names
           const servicesList = servicesData
             ?.map(item => item.services?.nombre)
             .filter(Boolean) || [];
@@ -80,7 +77,7 @@ const fetchAppointments = async () => {
           return {
             ...appointment,
             servicesList,
-            services: servicesList.join(' + ') // Keep for backward compatibility
+            services: servicesList.join(' + ')
           };
         })
       );
@@ -110,42 +107,6 @@ const fetchAppointments = async () => {
     fetchAppointments();
   };
 
-  const cancelAppointment = async (appointmentId) => {
-    Alert.alert(
-      "Cancelar cita",
-      "¿Estás seguro de que deseas cancelar esta cita?",
-      [
-        { text: "No", style: "cancel" },
-        {
-          text: "Sí, cancelar",
-          style: "destructive",
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const { error } = await supabase
-                .from('appointments')
-                .update({ estado: 'cancelada' })
-                .eq('id', appointmentId);
-
-              if (error) {
-                console.error('Error al cancelar la cita:', error);
-                Alert.alert("Error", "No se pudo cancelar la cita");
-              } else {
-                Alert.alert("Éxito", "La cita ha sido cancelada");
-                fetchAppointments();
-              }
-            } catch (error) {
-              console.error('Error:', error);
-              Alert.alert("Error", "Ocurrió un error inesperado");
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const getServiceIcon = (services) => {
     if (!services) return 'sparkles-outline';
     const lowerServices = services.toLowerCase();
@@ -165,9 +126,9 @@ const fetchAppointments = async () => {
       }
     >
       <Ionicons name="time-outline" size={28} color={theme.colors.accent} />
-      <Text style={styles.title}>Mis citas 📅</Text>
+      <Text style={styles.title}>Historial 📅</Text>
       <Text style={styles.subtitle}>
-        Aquí se mostrarán tus citas pendientes.
+        Aquí se mostrará el historial de tus citas pasadas.
       </Text>
 
       {loading ? (
@@ -185,7 +146,6 @@ const fetchAppointments = async () => {
         </View>
       ) : (
         appointments.map((appointment) => {
-          // Formatear la fecha
           const fecha = new Date((appointment.fecha || '2025-01-01') + 'T00:00:00');
           const fechaStr = fecha.toLocaleDateString('es-MX', { 
             weekday: 'short',
@@ -228,21 +188,11 @@ const fetchAppointments = async () => {
                   appointment.estado === 'cancelada' && styles.statusTextCancelled
                 ]}>
                   {appointment.estado === 'pendiente' ? '⏳ Pendiente' : 
-                   appointment.estado === 'confirmed' ? '✓ Confirmada' : 
+                   appointment.estado === 'confirmed' ? '✓ Completada' : 
                    appointment.estado === 'cancelada' ? '❌ Cancelada' :
                    appointment.estado || appointment.status || 'Estado'}
                 </Text>
               </View>
-
-              {appointment.estado !== 'cancelada' && (
-                <TouchableOpacity 
-                  style={styles.cancelButton}
-                  onPress={() => cancelAppointment(appointment.id)}
-                >
-                  <Ionicons name="close-circle-outline" size={16} color="#e74c3c" />
-                  <Text style={styles.cancelButtonText}>Cancelar cita</Text>
-                </TouchableOpacity>
-              )}
             </View>
           );
         })
@@ -365,24 +315,6 @@ const makeStyles = (theme) =>
       color: "#e74c3c",
     },
 
-    cancelButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#fee2e2',
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: 8,
-      marginTop: 12,
-      gap: 6,
-    },
-
-    cancelButtonText: {
-      color: '#e74c3c',
-      fontSize: 12,
-      fontWeight: "600",
-    },
-
     emptyState: {
       alignItems: "center",
       justifyContent: "center",
@@ -409,18 +341,6 @@ const makeStyles = (theme) =>
       fontWeight: "600",
     },
 
-    repeatBtn: {
-      backgroundColor: theme.colors.accent,
-      paddingVertical: 12,
-      borderRadius: 10,
-      alignItems: "center",
-    },
-
-    repeatText: {
-      color: theme.colors.primary,
-      fontWeight: "700",
-    },
-
     backButton: {
       marginTop: 30,
     },
@@ -430,3 +350,4 @@ const makeStyles = (theme) =>
       fontWeight: "600",
     },
   });
+
