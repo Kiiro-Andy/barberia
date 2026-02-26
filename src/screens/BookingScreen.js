@@ -13,6 +13,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 import { supabase } from "../utils/supabase";
+import { scheduleAppointmentReminder } from "../utils/notifications";
 
 const STEPS = ["barber", "service", "date", "time", "confirm", "done"];
 
@@ -249,13 +250,12 @@ const fetchAvailability = async (dateParam = null) => {
     const formattedDate = selectedDate.toISOString().split('T')[0];
     console.log(`buildTimeSlots llamado - fecha: ${formattedDate}, onlyValidate: ${onlyValidate}`);
     
-    // Consultar ocupados SOLO para el barbero seleccionado
-    // Esto permite que otro barbero atienda a la misma hora
+    // Consultar citas ocupadas para el barbero seleccionado
+    // NO filtramos por estado aquí, el filtro se hace en handleBuildTimeSlots (StepDay)
     let query = supabase
       .from('appointments')
-      .select('hora_inicio')
-      .eq('fecha', formattedDate)
-      .eq('status', 'confirmed');
+      .select('hora_inicio, estado')
+      .eq('fecha', formattedDate);
     
     // Si hay un barbero seleccionado, filtrar por su ID
     if (selectedBarber?.id) {
@@ -266,7 +266,17 @@ const fetchAvailability = async (dateParam = null) => {
     
     console.log(`Citas ocupadas para ${formattedDate} (barbero: ${selectedBarber?.id || 'ninguno'}):`, appointmentsData);
     
-    const occupiedTimes = appointmentsData?.map(a => a.hora_inicio) || [];
+    // Filtrar solo las NO canceladas
+    const occupiedTimes = (appointmentsData || [])
+      .filter(a => {
+        const estado = a.estado || '';
+        return estado.toLowerCase() !== 'cancelada' && estado.toLowerCase() !== 'cancelled';
+      })
+      .map(a => {
+        const hora = a.hora_inicio || '';
+        const parts = hora.split(':');
+        return `${parts[0]}:${parts[1]}`;
+      });
     
     // Obtener disponibilidad del día
     const avail = await fetchAvailability();
@@ -301,12 +311,17 @@ const fetchAvailability = async (dateParam = null) => {
     
     const { data, error } = await supabase
       .from('appointments')
-      .select('hora_inicio')
-      .eq('fecha', formattedDate)
-      .eq('status', 'confirmed');
+      .select('hora_inicio, estado')
+      .eq('fecha', formattedDate);
     
     if (data && !error) {
-      const times = data.map(appointment => appointment.hora_inicio);
+      // Filtrar solo las NO canceladas
+      const times = (data || [])
+        .filter(a => {
+          const estado = a.estado || '';
+          return estado.toLowerCase() !== 'cancelada' && estado.toLowerCase() !== 'cancelled';
+        })
+        .map(appointment => appointment.hora_inicio);
       setOccupiedTimes(times);
     }
   };
@@ -386,7 +401,7 @@ const saveAppointment = async () => {
 // Verificar que la hora no esté ocupada PARA EL MISMO BARBERO
       let query = supabase
         .from('appointments')
-        .select('id')
+        .select('id, estado')
         .eq('fecha', formattedDate)
         .eq('hora_inicio', selectedTime);
       
@@ -397,7 +412,13 @@ const saveAppointment = async () => {
       
       const { data: existingAppointments } = await query;
       
-      if (existingAppointments && existingAppointments.length > 0) {
+      // Filtrar solo las NO canceladas
+      const validAppointments = (existingAppointments || []).filter(a => {
+        const estado = a.estado || '';
+        return estado.toLowerCase() !== 'cancelada' && estado.toLowerCase() !== 'cancelled';
+      });
+      
+      if (validAppointments && validAppointments.length > 0) {
         Alert.alert(
           "Hora no disponible",
           "Ya tienes una cita agendada a esta hora con este barbero. Por favor selecciona otra hora.",
@@ -405,6 +426,24 @@ const saveAppointment = async () => {
         );
         setLoading(false);
         return false;
+      }
+      
+      // Si hay citas canceladas a esta hora, eliminarlas para permitir nueva cita
+      if (existingAppointments && existingAppointments.length > 0) {
+        const cancelledIds = existingAppointments
+          .filter(a => {
+            const estado = a.estado || '';
+            return estado.toLowerCase() === 'cancelada' || estado.toLowerCase() === 'cancelled';
+          })
+          .map(a => a.id);
+        
+        if (cancelledIds.length > 0) {
+          console.log('Eliminando citas canceladas existentes:', cancelledIds);
+          await supabase
+            .from('appointments')
+            .delete()
+            .in('id', cancelledIds);
+        }
       }
       
       // Calcular hora_fin (una hora después de hora_inicio)
@@ -435,6 +474,18 @@ const saveAppointment = async () => {
         .select();
 
       if (appointmentError) {
+        // Manejar error de restricción única
+        if (appointmentError.code === '23505') {
+          console.error('Error: cita duplicada en la base de datos');
+          Alert.alert(
+            "Hora no disponible",
+            "Ya existe una cita a esta hora en la base de datos. Por favor selecciona otra hora.",
+            [{ text: "Entendido" }]
+          );
+          setLoading(false);
+          return false;
+        }
+        
         console.error('Error al guardar la cita:', appointmentError);
         Alert.alert("Error", `No se pudo guardar la cita: ${appointmentError.message}`);
         return false;
@@ -465,6 +516,19 @@ const saveAppointment = async () => {
       }
 
       console.log('Servicios guardados exitosamente:', servicesResult);
+
+      // 3. Programar notificación de recordatorio (1 hora antes)
+      const barberName = selectedBarber?.nombre || 'tu barbero';
+      const notificationId = await scheduleAppointmentReminder(
+        selectedDate,
+        selectedTime,
+        barberName
+      );
+
+      if (notificationId) {
+        console.log('Notificación de recordatorio programada:', notificationId);
+      }
+
       return true;
     } catch (error) {
       console.error('Error:', error);
