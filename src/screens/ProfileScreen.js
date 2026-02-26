@@ -290,7 +290,7 @@ export default function ProfileScreen({ navigation }) {
 								<Text style={styles.buttonText}>Editar perfil</Text>
 							</TouchableOpacity>
 
-							<TouchableOpacity 
+						<TouchableOpacity 
 								style={[styles.button, styles.historyButton]}
 								onPress={() => navigation.navigate("Appointments")}
 							>
@@ -301,6 +301,19 @@ export default function ProfileScreen({ navigation }) {
 									style={{ marginRight: 6 }}
 								/>
 								<Text style={[styles.buttonText, { color: isDark ? "#fff" : "#fff" }]}>Mis citas</Text>
+							</TouchableOpacity>
+
+							<TouchableOpacity 
+								style={[styles.button, styles.historyButton]}
+								onPress={() => navigation.navigate("History")}
+							>
+								<Ionicons
+									name="archive-outline"
+									size={18}
+									color={isDark ? "#fff" : "#fff"}
+									style={{ marginRight: 6 }}
+								/>
+								<Text style={[styles.buttonText, { color: isDark ? "#fff" : "#fff" }]}>Historial</Text>
 							</TouchableOpacity>
 						</>
 					)}
