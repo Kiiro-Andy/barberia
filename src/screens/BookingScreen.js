@@ -98,13 +98,24 @@ const fetchAvailability = async (dateParam = null) => {
     // Consultar la tabla availability para este día de la semana
     const { data, error } = await supabase
       .from('availability')
-      .select('dia_semana, hora_inicio, hora_fin')
+      .select('dia_semana, hora_inicio, hora_fin, horas_seleccionadas')
       .eq('dia_semana', dayOfWeek)
       .single();
     
     console.log(`Consultando availability con dia_semana=${dayOfWeek}:`, data, error);
     
     if (data && !error) {
+      // Si hay horas_seleccionadas en JSON, usarlas
+      if (data.horas_seleccionadas && Array.isArray(data.horas_seleccionadas) && data.horas_seleccionadas.length > 0) {
+        console.log(`Usando horas_seleccionadas del JSON:`, data.horas_seleccionadas);
+        const availWithHours = {
+          ...data,
+          horas_json: data.horas_seleccionadas
+        };
+        setAvailability(availWithHours);
+        return availWithHours;
+      }
+      // Si no hay horas_seleccionadas, usar hora_inicio y hora_fin como antes
       setAvailability(data);
       return data;
     } else {
@@ -182,6 +193,51 @@ const fetchAvailability = async (dateParam = null) => {
     return slots;
   };
 
+  // Nueva función para generar slots desde el array JSON de horas_seleccionadas
+  const generateTimeSlotsFromJSON = (horasJSON, occupied, selectedDateParam = null) => {
+    if (!horasJSON || !Array.isArray(horasJSON) || horasJSON.length === 0) return [];
+    
+    const slots = [];
+    
+    // Verificar si la fecha seleccionada es hoy
+    const today = new Date();
+    const isToday = selectedDateParam && 
+      selectedDateParam.getDate() === today.getDate() &&
+      selectedDateParam.getMonth() === today.getMonth() &&
+      selectedDateParam.getFullYear() === today.getFullYear();
+    
+    // Obtener la hora actual si es hoy
+    const currentHour = isToday ? today.getHours() : null;
+    const currentMinute = isToday ? today.getMinutes() : null;
+    
+    console.log(`generateTimeSlotsFromJSON - es hoy: ${isToday}, hora actual: ${currentHour}:${currentMinute}, horas del JSON:`, horasJSON);
+    
+    // Procesar cada hora del array JSON
+    horasJSON.forEach(hora => {
+      // Normalizar la hora (puede venir como "10:00" o "10:00:00")
+      const horaNormalizada = hora.includes(':') ? `${hora.split(':')[0]}:${hora.split(':')[1]}` : hora;
+      
+      const [hour, minute] = horaNormalizada.split(':').map(Number);
+      
+      // Si es hoy, bloquear horas que ya pasaron
+      let isPast = false;
+      if (isToday) {
+        if (hour < currentHour) {
+          isPast = true;
+        } else if (hour === currentHour && minute < currentMinute) {
+          isPast = true;
+        }
+      }
+      
+      slots.push({
+        time: horaNormalizada,
+        available: !occupied.includes(horaNormalizada) && !isPast,
+      });
+    });
+    
+    return slots;
+  };
+
   const buildTimeSlots = async (onlyValidate = false) => {
     const formattedDate = selectedDate.toISOString().split('T')[0];
     console.log(`buildTimeSlots llamado - fecha: ${formattedDate}, onlyValidate: ${onlyValidate}`);
@@ -208,8 +264,18 @@ const fetchAvailability = async (dateParam = null) => {
       return false;
     }
     
-    const slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes, selectedDate);
-    console.log(`Slots generados:`, slots.length);
+    // Determinar qué función usar según si hay horas_seleccionadas en JSON
+    let slots = [];
+    if (avail.horas_json && Array.isArray(avail.horas_json) && avail.horas_json.length > 0) {
+      // Usar las horas específicas del JSON
+      slots = generateTimeSlotsFromJSON(avail.horas_json, occupiedTimes, selectedDate);
+      console.log(`Slots generados desde JSON:`, slots.length);
+    } else {
+      // Usar el rango de horas tradicional (hora_inicio a hora_fin)
+      slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes, selectedDate);
+      console.log(`Slots generados desde rango:`, slots.length);
+    }
+    
     setTimeSlots(slots);
     
     return true;
@@ -587,8 +653,18 @@ const StepDay = () => {
         return false;
       }
       
-      const slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes, targetDate);
-      console.log(`Slots generados: ${slots.length}, disponibles: ${slots.filter(s => s.available).length}`);
+      // Determinar qué función usar según si hay horas_seleccionadas en JSON
+      let slots = [];
+      if (avail.horas_json && Array.isArray(avail.horas_json) && avail.horas_json.length > 0) {
+        // Usar las horas específicas del JSON
+        slots = generateTimeSlotsFromJSON(avail.horas_json, occupiedTimes, targetDate);
+        console.log(`Slots generados desde JSON: ${slots.length}, disponibles: ${slots.filter(s => s.available).length}`);
+      } else {
+        // Usar el rango de horas tradicional (hora_inicio a hora_fin)
+        slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes, targetDate);
+        console.log(`Slots generados desde rango: ${slots.length}, disponibles: ${slots.filter(s => s.available).length}`);
+      }
+      
       setTimeSlots(slots);
       return true;
     };
