@@ -283,11 +283,24 @@ export default function ProfileScreen({ navigation }) {
 							<Text style={styles.info}>Barbero favorito: Carlos</Text>
 							<Text style={styles.info}>Servicio preferido: Corte + Barba</Text>
 
-							<TouchableOpacity 
+						<TouchableOpacity 
 								style={styles.button}
 								onPress={() => setIsEditing(true)}
 							>
 								<Text style={styles.buttonText}>Editar perfil</Text>
+							</TouchableOpacity>
+
+							<TouchableOpacity 
+								style={[styles.button, styles.historyButton]}
+								onPress={() => navigation.navigate("Appointments")}
+							>
+								<Ionicons
+									name="time-outline"
+									size={18}
+									color={isDark ? "#fff" : "#fff"}
+									style={{ marginRight: 6 }}
+								/>
+								<Text style={[styles.buttonText, { color: isDark ? "#fff" : "#fff" }]}>Mis citas</Text>
 							</TouchableOpacity>
 						</>
 					)}
@@ -408,6 +421,10 @@ const makeStyles = (theme) =>
 		backText: {
 			color: theme.colors.accent,
 			fontWeight: "600",
+		},
+		historyButton: {
+			backgroundColor: theme.colors.secondary || "#4A90A4",
+			marginTop: 10,
 		},
 		editContainer: {
 			width: "80%",
