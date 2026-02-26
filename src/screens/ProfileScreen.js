@@ -16,6 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 import { supabase } from "../utils/supabase";
+import { sendTestNotification } from "../utils/notifications";
 
 export default function ProfileScreen({ navigation }) {
 	const { theme, toggleTheme, isDark } = useTheme();
@@ -303,7 +304,7 @@ export default function ProfileScreen({ navigation }) {
 								<Text style={[styles.buttonText, { color: isDark ? "#fff" : "#fff" }]}>Mis citas</Text>
 							</TouchableOpacity>
 
-							<TouchableOpacity 
+						<TouchableOpacity 
 								style={[styles.button, styles.historyButton]}
 								onPress={() => navigation.navigate("History")}
 							>
@@ -314,6 +315,39 @@ export default function ProfileScreen({ navigation }) {
 									style={{ marginRight: 6 }}
 								/>
 								<Text style={[styles.buttonText, { color: isDark ? "#fff" : "#fff" }]}>Historial</Text>
+							</TouchableOpacity>
+
+							{/* Botón para probar notificaciones */}
+							<TouchableOpacity 
+								style={[styles.button, { backgroundColor: "#6A5ACD" }]}
+								onPress={async () => {
+									Alert.alert(
+										"Probar notificaciones",
+										"Recibirás una notificación de prueba en 5 segundos. Asegúrate de que la aplicación tenga permisos de notificaciones.",
+										[
+											{ text: "Cancelar", style: "cancel" },
+											{ 
+												text: "Probar", 
+												onPress: async () => {
+													const success = await sendTestNotification();
+													if (success) {
+														Alert.alert("Éxito", "Notificación de prueba programada. Deberías recibirla en 5 segundos.");
+													} else {
+														Alert.alert("Error", "No se pudieron enviar notificaciones. Verifica los permisos en la configuración del dispositivo.");
+													}
+												}
+											}
+										]
+									);
+								}}
+							>
+								<Ionicons
+									name="notifications-outline"
+									size={18}
+									color="#fff"
+									style={{ marginRight: 6 }}
+								/>
+								<Text style={[styles.buttonText, { color: "#fff" }]}>Probar notificaciones</Text>
 							</TouchableOpacity>
 						</>
 					)}

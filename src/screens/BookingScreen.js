@@ -13,6 +13,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../Theme/ThemeContext";
 import { supabase } from "../utils/supabase";
+import { scheduleAppointmentReminder } from "../utils/notifications";
 
 const STEPS = ["barber", "service", "date", "time", "confirm", "done"];
 
@@ -515,6 +516,19 @@ const saveAppointment = async () => {
       }
 
       console.log('Servicios guardados exitosamente:', servicesResult);
+
+      // 3. Programar notificación de recordatorio (1 hora antes)
+      const barberName = selectedBarber?.nombre || 'tu barbero';
+      const notificationId = await scheduleAppointmentReminder(
+        selectedDate,
+        selectedTime,
+        barberName
+      );
+
+      if (notificationId) {
+        console.log('Notificación de recordatorio programada:', notificationId);
+      }
+
       return true;
     } catch (error) {
       console.error('Error:', error);
