@@ -1,28 +1,51 @@
-Deno.serve(async (req) => {
-  try {
-    const { user_id, title, body } = await req.json();
+// 1. IMPORTACIONES NECESARIAS
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7'
 
-    // Cliente Supabase con service_role (acceso total)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+serve(async (req) => {
+  try {
+    // 2. RECIBIR DATOS (Webhook o Manual)
+    const payload = await req.json();
+    console.log("Payload recibido:", payload);
+
+    const isWebhook = !!payload.record;
+    const user_id = isWebhook ? payload.record.cliente_id : payload.user_id;
+    const title = payload.title || (isWebhook ? "Actualización de Cita" : "Notificación");
+    const body = payload.body || (isWebhook ? `Tu cita ahora está: ${payload.record.status}` : "Tienes un nuevo mensaje");
+
+    // 3. CONFIGURAR CLIENTE SUPABASE
+    // Asegúrate de que estos nombres coincidan con los que pusiste en 'Secrets' (SB_URL y SB_SERVICE_ROLE_KEY)
+    const supabaseUrl = Deno.env.get('SB_URL') ?? ''; 
+    const supabaseKey = Deno.env.get('SB_SERVICE_ROLE_KEY') ?? ''; 
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Faltan las variables de entorno SB_URL o SB_SERVICE_ROLE_KEY");
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    const { data } = await supabase
+    // 4. BUSCAR EL TOKEN EN LA TABLA PROFILES
+    const { data, error: dbError } = await supabase
       .from('profiles')
       .select('expo_push_token')
       .eq('id', user_id)
       .single();
 
-    if (!data?.expo_push_token) {
-      return new Response('Token no encontrado', { status: 404 });
+    if (dbError || !data?.expo_push_token) {
+      console.error("Error DB o Token no encontrado:", dbError);
+      return new Response(JSON.stringify({ error: 'Token no encontrado para este usuario' }), { 
+        status: 404, 
+        headers: { "Content-Type": "application/json" } 
+      });
     }
 
+    // 5. ENVIAR A EXPO
     const message = {
       to: data.expo_push_token,
-      title,
-      body,
+      title: title,
+      body: body,
       sound: 'default',
     };
 
@@ -35,10 +58,17 @@ Deno.serve(async (req) => {
       body: JSON.stringify(message),
     });
 
-    return new Response(JSON.stringify(await apiResponse.json()), {
-      headers: { 'Content-Type': 'application/json' },
+    const resData = await apiResponse.json();
+    return new Response(JSON.stringify(resData), { 
+      status: 200, 
+      headers: { "Content-Type": "application/json" } 
     });
+
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    console.error("Error en la función:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500, 
+      headers: { "Content-Type": "application/json" } 
+    });
   }
-});
+})
