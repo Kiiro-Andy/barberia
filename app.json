@@ -4,9 +4,14 @@
     "slug": "barbershop",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon-dark.png",
+    "icon": "./assets/icon-light.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "notification": {
+      "icon": "./assets/icon-light.png",
+      "color": "#000000",
+      "iosDisplayInForeground": true
+    },
     "splash": {
       "image": "./assets/icon-dark.png",
       "resizeMode": "contain",
@@ -29,13 +34,7 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon-dark.png",
-          "color": "#C0A060"
-        }
-      ]
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

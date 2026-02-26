@@ -1,17 +1,12 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  Image,
-  ActivityIndicator,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useTheme } from "../Theme/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "../utils/supabase";
+
+import { useTheme } from "../Theme/ThemeContext";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 import { supabase } from "../utils/supabase";
 
 import LoginScreen from "../screens/LoginScreen";
@@ -25,65 +20,46 @@ import RegisterScreen from "../screens/RegisterScreen";
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigation() {
-  const { paperTheme, isDark } = useTheme(); // isDark aquí para TODO
-  const [profileImage, setProfileImage] = useState(null);
-  const [imageLoading, setImageLoading] = useState(true);
+  const { paperTheme, isDark } = useTheme();
+  const [userId, setUserId] = useState(null);
 
-  // Theme colors
+  useEffect(() => {
+    // 1. Verificar si ya hay una sesión activa
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setUserId(session.user.id);
+    });
+
+    // 2. Escuchar cambios en la autenticación (Login/Logout)
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id || null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // 3. Activamos el hook de notificaciones pasándole el userId
+  const { expoPushToken } = usePushNotifications(userId);
+
   const headerBg = isDark ? "#141414" : paperTheme.colors.surface;
   const headerText = isDark ? "#FFFFFF" : paperTheme.colors.onSurface;
   const accent = "#C0A060";
-
-  // Fetch profile image
-  useEffect(() => {
-    fetchProfileImage();
-  }, []);
-
-  const fetchProfileImage = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setProfileImage(user.user_metadata?.avatar_url || null);
-      } else {
-        setProfileImage(null);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      setProfileImage(null);
-    } finally {
-      setImageLoading(false);
-    }
-  };
 
   const CustomHeader = ({ title, navigation, canGoBack }) => (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#141414" />
       <View style={[styles.customHeader, { backgroundColor: headerBg }]}>
-        {/* IZQUIERDA */}
         <View style={styles.left}>
           {canGoBack && (
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={26} color={accent} />
             </TouchableOpacity>
           )}
-          <Text style={[styles.headerTitle, { color: headerText }]}>
-            {title}
-          </Text>
+          <Text style={[styles.headerTitle, { color: headerText }]}>{title}</Text>
         </View>
-
-        {/* DERECHA - IMAGEN */}
         <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
-          {imageLoading ? (
-            <ActivityIndicator size={20} color={accent} />
-          ) : profileImage ? (
-            <Image
-              source={{ uri: profileImage }}
-              style={{ width: 38, height: 38, borderRadius: 19 }}
-              resizeMode="cover"
-            />
-          ) : (
-            <Ionicons name="person-circle-outline" size={38} color={accent} />
-          )}
+          <Ionicons name="person-circle-outline" size={38} color={accent} />
         </TouchableOpacity>
       </View>
     </>
@@ -92,59 +68,20 @@ export default function AppNavigation() {
   return (
     <NavigationContainer theme={paperTheme}>
       <Stack.Navigator initialRouteName="Login">
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Register"
-          component={RegisterScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={({ navigation }) => ({
-            header: () => <CustomHeader title="Barberia" navigation={navigation} />,
-          })}
-        />
-        <Stack.Screen
-          name="Booking"
-          component={BookingScreen}
-          options={({ navigation }) => ({
-            header: () => (
-              <CustomHeader title="Reservar Cita" navigation={navigation} canGoBack />
-            ),
-          })}
-        />
-        <Stack.Screen
-          name="Appointments"
-          component={AppointmentsScreen}
-          options={({ navigation }) => ({
-            header: () => (
-              <CustomHeader title="Mis Citas" navigation={navigation} canGoBack />
-            ),
-          })}
-        />
-        <Stack.Screen
-          name="History"
-          component={HistoryScreen}
-          options={({ navigation }) => ({
-            header: () => (
-              <CustomHeader title="Historial" navigation={navigation} canGoBack />
-            ),
-          })}
-        />
-        <Stack.Screen
-          name="Profile"
-          component={ProfileScreen}
-          options={({ navigation }) => ({
-            header: () => (
-              <CustomHeader title="Perfil" navigation={navigation} canGoBack />
-            ),
-          })}
-        />
+        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Home" component={HomeScreen} options={({ navigation }) => ({
+          header: () => <CustomHeader title="Barberia" navigation={navigation} />,
+        })} />
+        <Stack.Screen name="Booking" component={BookingScreen} options={({ navigation }) => ({
+          header: () => <CustomHeader title="Reservar Cita" navigation={navigation} canGoBack />,
+        })} />
+        <Stack.Screen name="Appointments" component={AppointmentsScreen} options={({ navigation }) => ({
+          header: () => <CustomHeader title="Mis Citas" navigation={navigation} canGoBack />,
+        })} />
+        <Stack.Screen name="Profile" component={ProfileScreen} options={({ navigation }) => ({
+          header: () => <CustomHeader title="Perfil" navigation={navigation} canGoBack />,
+        })} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -160,19 +97,8 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  left: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-  },
+  left: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerTitle: { fontSize: 20, fontWeight: "800", letterSpacing: 0.6 },
 });

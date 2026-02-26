@@ -2,7 +2,7 @@ import React from "react";
 import { Provider as PaperProvider } from "react-native-paper";
 import { ThemeProvider, useTheme } from "./src/Theme/ThemeContext";
 import AppNavigation from "./src/Navigation/AppNavigation";
-
+import { usePushNotifications } from "./src/hooks/usePushNotifications";
 function ThemedApp() {
 	const { paperTheme } = useTheme();
 
@@ -14,6 +14,7 @@ function ThemedApp() {
 }
 
 export default function App() {
+	  usePushNotifications();
 	return (
 		<ThemeProvider>
 			<ThemedApp />
