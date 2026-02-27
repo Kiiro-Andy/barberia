@@ -79,6 +79,9 @@ export default function AppNavigation() {
         <Stack.Screen name="Profile" component={ProfileScreen} options={({ navigation }) => ({
           header: () => <CustomHeader title="Perfil" navigation={navigation} canGoBack />,
         })} />
+        <Stack.Screen name="History" component={HistoryScreen} options={({ navigation }) => ({
+          header: () => <CustomHeader title="Historial" navigation={navigation} canGoBack />,
+        })} />
       </Stack.Navigator>
     </NavigationContainer>
   );
