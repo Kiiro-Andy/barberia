@@ -23,6 +23,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-dark.png",
+        "googleServicesFile": "./google-services.json",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
