@@ -44,9 +44,6 @@ export default function HomeScreen({ navigation }) {
             sortBy: { column: 'name', order: 'asc' },
           });
 
-        console.log('Carousel data:', data);
-        console.log('Carousel error:', error);
-
         if (error) {
           console.error('Error fetching carousel images:', error);
           return;
@@ -59,7 +56,6 @@ export default function HomeScreen({ navigation }) {
               .storage
               .from('Fotos')
               .getPublicUrl(`carrusel_cortes/${file.name}`);
-            console.log('Image URL:', urlData.publicUrl);
             return {
               name: file.name,
               url: urlData.publicUrl,
@@ -67,7 +63,7 @@ export default function HomeScreen({ navigation }) {
           });
           setCarouselImages(imagesWithUrls);
         } else {
-          console.log('No images found in carrusel_cortes folder');
+          // No images found
         }
       } catch (error) {
         console.error('Error in fetchCarouselImages:', error);
@@ -108,6 +104,7 @@ export default function HomeScreen({ navigation }) {
       const { data, error } = await supabase
         .from('services')
         .select('id, nombre, precio, descripcion')
+        .eq('activo', true)
         .order('nombre');
       
       if (data && !error) {

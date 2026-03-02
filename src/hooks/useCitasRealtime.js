@@ -19,7 +19,6 @@ export const useCitasRealtime = (userId) => {
           filter: `cliente_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('Cambio detectado en citas:', payload);
           fetchCitas(); // Solo refresca la lista en pantalla
         }
       )

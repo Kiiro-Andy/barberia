@@ -6,7 +6,6 @@ serve(async (req) => {
   try {
     // 2. RECIBIR DATOS (Webhook o Manual)
     const payload = await req.json();
-    console.log("Payload recibido:", payload);
 
     const isWebhook = !!payload.record;
     const user_id = isWebhook ? payload.record.user_id : payload.user_id; 

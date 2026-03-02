@@ -4,16 +4,16 @@
     "slug": "barbershop",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon-light.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "notification": {
-      "icon": "./assets/icon-light.png",
+      "icon": "./assets/logo.png",
       "color": "#000000",
       "iosDisplayInForeground": true
     },
     "splash": {
-      "image": "./assets/icon-dark.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -22,7 +22,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon-dark.png",
+        "foregroundImage": "./assets/logo.png",
         
         "backgroundColor": "#ffffff"
       },
@@ -31,7 +31,7 @@
       "package": "com.elrobertds.barbershop"
     },
     "web": {
-      "favicon": "./assets/icon-dark.png"
+      "favicon": "./assets/logo.png"
     },
     "plugins": [
       "expo-asset",

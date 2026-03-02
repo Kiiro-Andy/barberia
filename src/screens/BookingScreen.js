@@ -51,6 +51,7 @@ export default function BookingScreen({ navigation }) {
       const { data, error } = await supabase
         .from('services')
         .select('id, nombre, precio, descripcion')
+        .eq('activo', true)
         .order('nombre');
 
       if (data && !error) {
@@ -60,20 +61,16 @@ export default function BookingScreen({ navigation }) {
     fetchServices();
 
     const fetchBarbers = async () => {
-      console.log('Fetching barbers...');
       const { data, error } = await supabase
         .from('profiles')
         .select('id, nombre, rol')
         .eq('rol', 'barbero')
         .order('nombre');
 
-      console.log('Barbers query result:', { data, error });
-
       if (error) {
         console.error('Error fetching barbers:', error);
         Alert.alert('Error', 'No se pudieron cargar los barberos');
       } else if (data) {
-        console.log('Setting barbers:', data);
         setBarbers(data);
       }
     };
@@ -87,9 +84,6 @@ const fetchAvailability = async (dateParam = null) => {
     // Domingo=0, Lunes=1, Martes=2, Miércoles=3, Jueves=4, Viernes=5, Sábado=6
     const dayOfWeek = targetDate.getDay();
     const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    
-    console.log(`fetchAvailability - fecha: ${targetDate.toDateString()}, día: ${dayOfWeek} (${dayNames[dayOfWeek]})`);
-    console.log(`fetchAvailability - barbero:`, selectedBarber);
     
     // Si es domingo (0), no hay atención
     if (dayOfWeek === 0) {
@@ -110,12 +104,9 @@ const fetchAvailability = async (dateParam = null) => {
     
     const { data, error } = await query.single();
     
-    console.log(`Consultando availability con dia_semana=${dayOfWeek} y barber_id=${selectedBarber?.id}:`, data, error);
-    
     if (data && !error) {
       // Si hay horas_seleccionadas en JSON, usarlas
       if (data.horas_seleccionadas && Array.isArray(data.horas_seleccionadas) && data.horas_seleccionadas.length > 0) {
-        console.log(`Usando horas_seleccionadas del JSON:`, data.horas_seleccionadas);
         const availWithHours = {
           ...data,
           horas_json: data.horas_seleccionadas
@@ -127,7 +118,6 @@ const fetchAvailability = async (dateParam = null) => {
       setAvailability(data);
       return data;
     } else {
-      console.log(`No se encontró disponibilidad específica para el barbero, usando horarios por defecto`);
       // Si no hay disponibilidad configurada para el barbero, usar horarios por defecto
       const defaultHours = {
         1: { dia_semana: 1, hora_inicio: '09:00', hora_fin: '19:00' }, // Lunes
@@ -166,8 +156,6 @@ const fetchAvailability = async (dateParam = null) => {
     // Obtener la hora actual si es hoy
     const currentHour = isToday ? today.getHours() : null;
     const currentMinute = isToday ? today.getMinutes() : null;
-    
-    console.log(`generateTimeSlots - es hoy: ${isToday}, hora actual: ${currentHour}:${currentMinute}`);
     
     // Generar horarios cada 30 minutos (9:00, 9:30, 10:00, 10:30, etc.)
     let hour = startHour;
@@ -218,8 +206,6 @@ const fetchAvailability = async (dateParam = null) => {
     const currentHour = isToday ? today.getHours() : null;
     const currentMinute = isToday ? today.getMinutes() : null;
     
-    console.log(`generateTimeSlotsFromJSON - es hoy: ${isToday}, hora actual: ${currentHour}:${currentMinute}, horas del JSON:`, horasJSON);
-    
     // Procesar cada hora del array JSON
     horasJSON.forEach(hora => {
       // Normalizar la hora (puede venir como "10:00" o "10:00:00")
@@ -248,7 +234,6 @@ const fetchAvailability = async (dateParam = null) => {
 
   const buildTimeSlots = async (onlyValidate = false) => {
     const formattedDate = selectedDate.toISOString().split('T')[0];
-    console.log(`buildTimeSlots llamado - fecha: ${formattedDate}, onlyValidate: ${onlyValidate}`);
     
     // Consultar citas ocupadas para el barbero seleccionado
     // NO filtramos por estado aquí, el filtro se hace en handleBuildTimeSlots (StepDay)
@@ -263,8 +248,6 @@ const fetchAvailability = async (dateParam = null) => {
     }
     
     const { data: appointmentsData } = await query;
-    
-    console.log(`Citas ocupadas para ${formattedDate} (barbero: ${selectedBarber?.id || 'ninguno'}):`, appointmentsData);
     
     // Filtrar solo las NO canceladas
     const occupiedTimes = (appointmentsData || [])
@@ -281,10 +264,7 @@ const fetchAvailability = async (dateParam = null) => {
     // Obtener disponibilidad del día
     const avail = await fetchAvailability();
     
-    console.log(`Disponibilidad obtenida:`, avail);
-    
     if (!avail) {
-      console.log(`No hay disponibilidad, slots vacíos`);
       setTimeSlots([]);
       return false;
     }
@@ -294,11 +274,9 @@ const fetchAvailability = async (dateParam = null) => {
     if (avail.horas_json && Array.isArray(avail.horas_json) && avail.horas_json.length > 0) {
       // Usar las horas específicas del JSON
       slots = generateTimeSlotsFromJSON(avail.horas_json, occupiedTimes, selectedDate);
-      console.log(`Slots generados desde JSON:`, slots.length);
     } else {
       // Usar el rango de horas tradicional (hora_inicio a hora_fin)
       slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes, selectedDate);
-      console.log(`Slots generados desde rango:`, slots.length);
     }
     
     setTimeSlots(slots);
@@ -336,16 +314,12 @@ const fetchAvailability = async (dateParam = null) => {
     const day = String(dateParam.getDate()).padStart(2, '0');
     const formattedDate = `${year}-${month}-${day}`;
     
-    console.log(`checkBarberTimeOff - barberId: ${barberId}, fecha: ${formattedDate}`);
-    
     const { data, error } = await supabase
       .from('time_off')
       .select('id, reason, date')
       .eq('barber_id', barberId)
       .eq('date', formattedDate)
       .single();
-    
-    console.log(`time_off query result:`, data, error);
     
     if (data && !error) {
       return data; // Retorna el registro de time_off con la razón
@@ -438,7 +412,6 @@ const saveAppointment = async () => {
           .map(a => a.id);
         
         if (cancelledIds.length > 0) {
-          console.log('Eliminando citas canceladas existentes:', cancelledIds);
           await supabase
             .from('appointments')
             .delete()
@@ -465,8 +438,6 @@ const saveAppointment = async () => {
         barber_name: selectedBarber?.nombre
       };
 
-      console.log('Insertando cita:', appointmentData);
-
       // 1. Insertar la cita
       const { data: appointmentResult, error: appointmentError } = await supabase
         .from('appointments')
@@ -492,15 +463,12 @@ const saveAppointment = async () => {
       }
 
       const appointmentId = appointmentResult[0].id;
-      console.log('Cita guardada exitosamente:', appointmentResult);
 
       // 2. Insertar los servicios en la tabla de relación
       const servicesToInsert = selectedServices.map(service => ({
         appointment_id: appointmentId,
         service_id: service.id
       }));
-
-      console.log('Insertando servicios:', servicesToInsert);
 
       const { data: servicesResult, error: servicesError } = await supabase
         .from('appointment_services')
@@ -515,8 +483,6 @@ const saveAppointment = async () => {
         return false;
       }
 
-      console.log('Servicios guardados exitosamente:', servicesResult);
-
       // 3. Programar notificación de recordatorio (1 hora antes)
       const barberName = selectedBarber?.nombre || 'tu barbero';
       const notificationId = await scheduleAppointmentReminder(
@@ -524,10 +490,6 @@ const saveAppointment = async () => {
         selectedTime,
         barberName
       );
-
-      if (notificationId) {
-        console.log('Notificación de recordatorio programada:', notificationId);
-      }
 
       return true;
     } catch (error) {
@@ -730,16 +692,11 @@ const StepDay = () => {
       const day = String(targetDate.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
       
-      console.log(`handleBuildTimeSlots - fecha original: ${targetDate.toDateString()}, formateada: ${formattedDate}`);
-      console.log(`Barbero seleccionado:`, selectedBarber);
-      
       // Consultar todas las citas del día primero (sin filtro) para debug
       const { data: allAppointments } = await supabase
         .from('appointments')
         .select('id, fecha, hora_inicio, barber_id, barber_name, estado')
         .eq('fecha', formattedDate);
-      
-      console.log(`TODAS las citas para ${formattedDate}:`, allAppointments);
       
       // Consultar citas ocupadas para este día (cualquier estado excepto cancelado)
       // FILTRAR POR BARBERO para permitir que otro barbero atienda a la misma hora
@@ -763,9 +720,6 @@ const StepDay = () => {
         const combined = [...(byId || []), ...(byName || [])];
         // Eliminar duplicados
         appointmentsData = combined.filter((v,i,a)=>a.findIndex(t=>(t.hora_inicio===v.hora_inicio))===i);
-        
-        console.log(`Citas por ID (${selectedBarber.id}):`, byId);
-        console.log(`Citas por nombre (${selectedBarber.nombre}):`, byName);
       } else {
         // Si no hay barbero seleccionado, traer todas las citas
         const { data } = await supabase
@@ -774,8 +728,6 @@ const StepDay = () => {
           .eq('fecha', formattedDate);
         appointmentsData = data || [];
       }
-      
-      console.log(`Citas ocupadas para ${formattedDate} (barbero: ${selectedBarber?.nombre || 'ninguno'}):`, appointmentsData);
       
       // Normalizar horas ocupadas (quitar segundos si existen)
       const occupiedTimes = (appointmentsData || [])
@@ -791,13 +743,10 @@ const StepDay = () => {
           return `${parts[0]}:${parts[1]}`;
         });
       
-      console.log(`Horas ocupadas:`, occupiedTimes);
-      
       // Verificar si el barbero tiene tiempo libre (vacaciones) en esta fecha
       if (selectedBarber?.id) {
         const timeOff = await checkBarberTimeOff(selectedBarber.id, targetDate);
         if (timeOff) {
-          console.log(`Barbero en tiempo libre: ${timeOff.reason}`);
           setTimeSlots([]);
           return { blocked: true, reason: timeOff.reason };
         }
@@ -816,11 +765,9 @@ const StepDay = () => {
       if (avail.horas_json && Array.isArray(avail.horas_json) && avail.horas_json.length > 0) {
         // Usar las horas específicas del JSON
         slots = generateTimeSlotsFromJSON(avail.horas_json, occupiedTimes, targetDate);
-        console.log(`Slots generados desde JSON: ${slots.length}, disponibles: ${slots.filter(s => s.available).length}`);
       } else {
         // Usar el rango de horas tradicional (hora_inicio a hora_fin)
         slots = generateTimeSlots(avail.hora_inicio, avail.hora_fin, occupiedTimes, targetDate);
-        console.log(`Slots generados desde rango: ${slots.length}, disponibles: ${slots.filter(s => s.available).length}`);
       }
       
       setTimeSlots(slots);
@@ -828,8 +775,6 @@ const StepDay = () => {
     };
 
     const onDateChange = async (event, date) => {
-      console.log(`onDateChange llamado - event.type: ${event?.type}, date: ${date}`);
-      
       setShowDatePicker(Platform.OS === 'ios');
       
       // En Android, cuando se confirma la fecha, event.type === 'set'
@@ -838,18 +783,14 @@ const StepDay = () => {
       if (Platform.OS === 'android') {
         if (event.type === 'set' && date) {
           selectedDateObj = new Date(date);
-          console.log(`Android fecha: ${selectedDateObj.toDateString()}, getDay(): ${selectedDateObj.getDay()}`);
         } else {
-          console.log('Usuario canceló');
           return;
         }
       } else {
-        console.log(`iOS date: ${date}`);
+        // iOS
       }
       
       if (selectedDateObj) {
-        console.log(`Fecha seleccionada: ${selectedDateObj.toDateString()}`);
-        
         // Validar que no sea domingo
         const dayOfWeek = selectedDateObj.getDay();
         if (dayOfWeek === 0) {

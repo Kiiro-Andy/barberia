@@ -11,11 +11,8 @@ export const usePushNotifications = (userId) => {
 
   useEffect(() => {
     if (!userId) {
-      console.log("Esperando userId para configurar notificaciones...");
       return;
     }
-
-    console.log("Configurando notificaciones para el usuario:", userId);
 
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -36,11 +33,11 @@ export const usePushNotifications = (userId) => {
     setupNotifications();
 
     notificationListener.current = Notifications.addNotificationReceivedListener(n => {
-      console.log('Notificación recibida en primer plano:', n);
+      // Notificación recibida
     });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(n => {
-      console.log('Usuario tocó la notificación:', n);
+      // Usuario tocó la notificación
     });
 
     return () => {
@@ -51,7 +48,6 @@ export const usePushNotifications = (userId) => {
 
   const registerForPushNotificationsAsync = async () => {
     if (!Device.isDevice) {
-      console.log('Aviso: Debes usar un dispositivo físico para recibir un Push Token');
       return '';
     }
 
@@ -75,7 +71,6 @@ export const usePushNotifications = (userId) => {
 
     try {
       const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-      console.log("Token generado con éxito:", token);
       return token;
     } catch (e) {
       console.error('Error al generar el token de Expo:', e);
@@ -84,7 +79,6 @@ export const usePushNotifications = (userId) => {
   };
 
   const savePushToken = async (token, userId) => {
-    console.log("Actualizando token en la base de datos...");
     const { error } = await supabase
       .from('profiles')
       .update({ expo_push_token: token })
@@ -92,8 +86,6 @@ export const usePushNotifications = (userId) => {
 
     if (error) {
       console.error('ERROR AL GUARDAR EN SUPABASE:', error.message);
-    } else {
-      console.log('¡TOKEN ACTUALIZADO EXITOSAMENTE EN SUPABASE!');
     }
   };
 

@@ -41,8 +41,6 @@ export default function LoginScreen({ navigation }) {
         password: password,
       });
 
-      console.log('Respuesta de login:', { data, error });
-
       if (error) {
         console.error('Error de login:', error);
         
@@ -55,7 +53,6 @@ export default function LoginScreen({ navigation }) {
           Alert.alert("Error de inicio de sesión", error.message);
         }
       } else {
-        console.log('Usuario autenticado:', data.user);
         
         // Verificar el rol del usuario
         const { data: userData, error: userError } = await supabase

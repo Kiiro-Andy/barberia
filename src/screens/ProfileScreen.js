@@ -176,8 +176,6 @@ export default function ProfileScreen({ navigation }) {
 			const projectUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';
 			const publicUrl = `${projectUrl}/storage/v1/object/public/Usuarios/perfiles/${fileName}`;
 			
-			console.log('Public URL:', publicUrl);
-			
 			// También mostrar localmente la imagen
 			setProfileImage(uri);
 

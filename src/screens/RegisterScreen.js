@@ -59,7 +59,6 @@ export default function RegisterScreen({ navigation }) {
         console.error('Error completo:', error);
         Alert.alert("Error de registro", error.message || "No se pudo completar el registro");
       } else {
-        console.log('Respuesta de Supabase:', data);
         
         // Verificar si el usuario fue creado
         if (data.user) {
