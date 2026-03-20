@@ -27,7 +27,7 @@ export default {
         foregroundImage: "./assets/logo.png",
         backgroundColor: "#ffffff"
       },
-      googleServicesFile: "./google-services.json",
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
       edgeToEdgeEnabled: true,
       package: "com.elrobertds.barbershop"
     },
